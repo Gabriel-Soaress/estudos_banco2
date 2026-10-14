@@ -422,4 +422,45 @@ Aqui está a análise profunda de cada ponto que você anotou durante a resoluç
 * **No Exercício 1:** Você usou `LEFT JOIN` entre usuário e treino. Excelente escolha defensiva, pois garante que usuários sem treino continuem no banco (mesmo que depois o `HAVING > 1` tenha filtrado apenas quem treinou mais de uma vez).
 * **No Exercício 3:** O uso de `NULLIF(COUNT(s.id_serie), 0)` funcionou perfeitamente como extintor de incêndio, provando que você já automatizou a proteção contra o erro fatal de divisão por zero.
 
+---
+
+## 🚀 PARTE 5: DESAFIO BÔNUS (A PONTE PARA O DIA 3: DE SELECT PARA PROCEDURE!)
+
+Para você já ter o gostinho de como o conteúdo de consultas vira código de prova em **PL/SQL**, faça este desafio rápido:
+
+### 🎯 DESAFIO BÔNUS: A PROCEDURE DO RECORDE ABSOLUTO
+Transforme a sua consulta da **Parte B do Exercício 2** em uma **PROCEDURE** chamada **`PRC_EXIBIR_MAIOR_RECORDE`**.
+
+**O que ela deve fazer:**
+1. A procedure não recebe parâmetros.
+2. Na área de declaração (entre o `IS` e o `BEGIN`), declare duas variáveis locais:
+   * `v_nome_exercicio VARCHAR2(100);`
+   * `v_carga_record NUMBER(6,2);`
+3. Dentro do bloco (`BEGIN ... END;`), execute o mesmo `SELECT` da Questão 2B usando a cláusula **`INTO`** para despejar os valores nas variáveis:
+   ```sql
+   SELECT e.NOME, r.CARGA_RECORD
+   INTO v_nome_exercicio, v_carga_record
+   FROM TRE_EXERCICIO e
+   INNER JOIN TRE_RECORD r ON r.ID_EXERCICIO = e.ID_EXERCICIO
+   WHERE r.CARGA_RECORD = (SELECT MAX(CARGA_RECORD) FROM TRE_RECORD);
+   ```
+4. Exiba o resultado no terminal usando `DBMS_OUTPUT.PUT_LINE` no formato:
+   `"O maior recorde do sistema pertence ao exercício [NOME] com a carga de [CARGA] kg!"`
+
+**Exigências:**
+* Usar `CREATE OR REPLACE PROCEDURE PRC_EXIBIR_MAIOR_RECORDE IS ... BEGIN ... END;`.
+* Usar `SELECT ... INTO ...`.
+* Usar `DBMS_OUTPUT.PUT_LINE`.
+* Sem bloco `EXCEPTION`.
+
+💡 **Dica de Raciocínio (A Regra do `SELECT ... INTO`):**  
+Dentro do PL/SQL, você nunca pode deixar um `SELECT` solto como fazia no SQL puro. O banco precisa guardar o resultado em algum lugar da memória. A cláusula `INTO` serve justamente como o "balde" que recebe os valores das colunas para depois você imprimir com o `DBMS_OUTPUT.PUT_LINE`.
+
+Para testar no Oracle SQL Developer ou terminal:
+```sql
+SET SERVEROUTPUT ON;
+EXEC PRC_EXIBIR_MAIOR_RECORDE;
+```
+
+
 
