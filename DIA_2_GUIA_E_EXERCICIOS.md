@@ -231,3 +231,167 @@ Logo após o comando de criação da View, escreva uma consulta `SELECT` que uti
 * Escrever o `SELECT` consumidor filtrando a própria View através da cláusula `WHERE`.
 
 💡 **Dica de Raciocínio:** A View encapsula toda a complexidade de cruzar `TRE_EXERCICIO`, `TRE_ITEM_TREINO` e `TRE_SERIE`. Depois que ela existir, sua segunda consulta será tão simples quanto `SELECT ... FROM VW_RESUMO_EXERCICIOS WHERE MAIOR_CARGA >= 100`.
+
+---
+
+## 🏆 PARTE 3: SUAS RESOLUÇÕES OFICIAIS (GABARITO DO DIA 2)
+
+Todas as 6 consultas do Dia 2 resolvidas por você e validadas:
+
+```sql
+-- ============================================================================
+-- EXERCÍCIO 1: Agregações Básicas com HAVING e ROUND
+-- ============================================================================
+SELECT
+    u.id_usuario,
+    u.nome AS nome_usuario,
+    COUNT(t.id_treino) AS qtd_treinos,
+    ROUND(AVG(t.duracao_minuto), 2) AS media_tempo,
+    MAX(t.duracao_minuto) AS maior_treino
+FROM tre_usuario u
+INNER JOIN tre_treino t ON t.id_usuario = u.id_usuario
+GROUP BY u.id_usuario, u.nome
+HAVING COUNT(t.id_treino) > 1;
+
+-- ============================================================================
+-- EXERCÍCIO 2: Questão 2 do Professor (Extremos Globais)
+-- ============================================================================
+-- Parte A: Usuário com a maior média de carga do sistema
+SELECT 
+    u.nome,
+    ROUND(AVG(s.carga), 2) AS media_carga
+FROM tre_usuario u
+INNER JOIN tre_treino t ON t.id_usuario = u.id_usuario
+INNER JOIN tre_item_treino it ON it.id_treino = t.id_treino
+INNER JOIN tre_serie s ON s.id_item_treino = it.id_item_treino
+GROUP BY u.nome
+HAVING AVG(s.carga) = (
+    SELECT MAX(AVG(s2.carga))
+    FROM tre_treino t2
+    JOIN tre_item_treino it2 ON it2.id_treino = t2.id_treino
+    JOIN tre_serie s2 ON s2.id_item_treino = it2.id_item_treino
+    GROUP BY t2.id_usuario
+);
+
+-- Parte B: Exercício com o maior recorde absoluto do sistema (Sem redundância!)
+SELECT 
+    e.nome AS exercicio,
+    r.carga_record
+FROM tre_exercicio e
+INNER JOIN tre_record r ON r.id_exercicio = e.id_exercicio
+WHERE r.carga_record = (SELECT MAX(carga_record) FROM tre_record);
+
+-- ============================================================================
+-- EXERCÍCIO 3: Agregações com Proteção NULLIF contra Divisão por Zero
+-- ============================================================================
+SELECT
+    e.cod_exercicio,
+    e.nome,
+    COUNT(s.id_serie) AS total_serie,
+    MIN(s.carga) AS menor_carga,
+    MAX(s.carga) AS mair_carga,
+    ROUND(AVG(s.carga), 2) AS media_carga,
+    ROUND(SUM(s.repeticoes) / NULLIF(COUNT(s.id_serie), 0)) AS media_rep_serie
+FROM tre_serie s
+INNER JOIN tre_item_treino it ON s.id_item_treino = it.id_item_treino
+INNER JOIN tre_exercicio e ON it.id_exercicio = e.id_exercicio
+GROUP BY e.cod_exercicio, e.nome;
+
+-- ============================================================================
+-- EXERCÍCIO 4: Questão 4 do Professor (Extremos por Categoria com 3 Subqueries)
+-- ============================================================================
+SELECT
+    max_min_grp_rec.nome,
+    ex_maior_rec.exercicio AS ex_maior,
+    max_min_grp_rec.maior_record,
+    ex_menor_rec.exercicio AS ex_menor,
+    max_min_grp_rec.menor_record
+FROM (
+    SELECT
+        grp.nome,
+        e.id_grp_muscular,
+        MAX(carga_record) AS maior_record,
+        MIN(carga_record) AS menor_record
+    FROM tre_record r
+    INNER JOIN tre_exercicio e ON r.id_exercicio = e.id_exercicio
+    INNER JOIN tre_grupomuscular grp ON grp.id_grp_muscular = e.id_grp_muscular
+    GROUP BY grp.nome, e.id_grp_muscular
+) max_min_grp_rec 
+INNER JOIN (
+    SELECT
+        e.nome AS exercicio, 
+        e.id_grp_muscular,
+        r.carga_record AS maior_rec
+    FROM tre_exercicio e
+    INNER JOIN tre_record r ON r.id_exercicio = e.id_exercicio
+) ex_maior_rec 
+    ON ex_maior_rec.maior_rec = max_min_grp_rec.maior_record
+   AND ex_maior_rec.id_grp_muscular = max_min_grp_rec.id_grp_muscular
+INNER JOIN (
+    SELECT
+        e.nome AS exercicio,
+        e.id_grp_muscular,
+        r.carga_record AS menor_rec
+    FROM tre_exercicio e
+    INNER JOIN tre_record r ON r.id_exercicio = e.id_exercicio
+) ex_menor_rec 
+    ON ex_menor_rec.menor_rec = max_min_grp_rec.menor_record
+   AND ex_menor_rec.id_grp_muscular = max_min_grp_rec.id_grp_muscular;
+
+-- ============================================================================
+-- EXERCÍCIO 5: Criando a VIEW Analítica de Desempenho
+-- ============================================================================
+CREATE OR REPLACE VIEW VW_DESEMPENHO_USUARIOS AS
+SELECT
+    u.id_usuario,
+    u.nome AS nome_usuario,
+    COUNT(t.id_treino) AS qtd_treinos,
+    ROUND(AVG(t.duracao_minuto), 2) AS media_tempo,
+    MAX(t.duracao_minuto) AS maior_treino
+FROM tre_usuario u
+INNER JOIN tre_treino t ON t.id_usuario = u.id_usuario
+GROUP BY u.id_usuario, u.nome;
+
+-- ============================================================================
+-- EXERCÍCIO 6: Criando e Consumindo a VIEW com Filtro no WHERE
+-- ============================================================================
+CREATE OR REPLACE VIEW VW_RESUMO_EXERCICIOS AS
+SELECT 
+    e.id_exercicio,
+    e.nome AS exercicio,
+    COUNT(s.id_serie) AS qtd_serie_realizadas,
+    MAX(s.carga) AS maior_carga,
+    ROUND(AVG(s.carga), 2) AS media_carga
+FROM tre_exercicio e
+LEFT JOIN tre_item_treino it ON it.id_exercicio = e.id_exercicio
+LEFT JOIN tre_serie s ON s.id_item_treino = it.id_item_treino
+GROUP BY e.id_exercicio, e.nome;
+
+-- Consulta consumidora da View:
+SELECT * 
+FROM VW_RESUMO_EXERCICIOS 
+WHERE MAIOR_CARGA >= 100;
+```
+
+---
+
+## 🚨 PARTE 4: PRINCIPAIS DIFICULDADES MAPEADAS NO DIA 2 & COMO NÃO ERRAR NA PROVA
+
+### 1. A Função Agregada Aninhada `MAX(AVG(...))`
+* **A Dúvida:** Tentar rodar `MAX(AVG(coluna))` sem `GROUP BY` e sem o caminho das tabelas na subquery.
+* **A Regra de Ouro:** Para o banco tirar "o máximo das médias", ele obrigatoriamente precisa saber a média **de quem**. Portanto, a subquery que contém `MAX(AVG(...))` **sempre** precisa de um `GROUP BY` e de conectar as tabelas necessárias até o dono da agregação (`ID_USUARIO`).
+
+### 2. Evitando Redundância ao Buscar o Campeão
+* **A Dúvida:** Fazer `GROUP BY` e `MAX()` do lado de fora depois que o `WHERE` já pescou o valor máximo.
+* **A Regra de Ouro:** Se o seu filtro `WHERE coluna = (SELECT MAX(coluna) ...)` já garantiu que só passam as linhas do recorde máximo, você **não precisa** de `GROUP BY` nem de outro `MAX()` lá fora. É só projetar o nome do dono e a carga direto!
+
+### 3. Evitando a "Contaminação" ao Cruzar Subqueries no FROM
+* **A Dúvida:** Comparar apenas a carga (`ex_maior.maior_rec = resumo.maior_record`) sem amarrar a categoria.
+* **A Regra de Ouro:** Quando você agrupa por uma categoria (ex: Grupo Muscular ou Sexo), **sempre** traga o crachá da categoria (`ID_GRP_MUSCULAR`) dentro da subquery e amarre no `ON` lá fora. Isso impede que o peso do Peitoral se junte com um exercício de Pernas por mera coincidência de valores iguais.
+
+### 4. O Extintor de Incêndio do SQL: `NULLIF`
+* **A Regra de Ouro:** Sempre que o enunciado pedir para dividir uma soma por uma contagem (cálculo manual de média), envolva o divisor com `NULLIF(divisor, 0)`. Isso mostra maturidade de código e garante que você nunca tome erro de divisão por zero na prova.
+
+### 5. VIEWS: A Consulta Definitiva
+* **A Regra de Ouro:** A View é criada com `CREATE OR REPLACE VIEW nome AS <seu_select>`. Ela é consumida exatamente como uma tabela comum no `FROM` de outros comandos `SELECT`, permitindo filtros simples com `WHERE`.
+
