@@ -375,23 +375,51 @@ WHERE MAIOR_CARGA >= 100;
 
 ---
 
-## 🚨 PARTE 4: PRINCIPAIS DIFICULDADES MAPEADAS NO DIA 2 & COMO NÃO ERRAR NA PROVA
+## 🚨 PARTE 4: SUAS PRINCIPAIS DIFICULDADES MAPEADAS NO DIA 2 & O "PORQUÊ" DE CADA UMA
 
-### 1. A Função Agregada Aninhada `MAX(AVG(...))`
-* **A Dúvida:** Tentar rodar `MAX(AVG(coluna))` sem `GROUP BY` e sem o caminho das tabelas na subquery.
-* **A Regra de Ouro:** Para o banco tirar "o máximo das médias", ele obrigatoriamente precisa saber a média **de quem**. Portanto, a subquery que contém `MAX(AVG(...))` **sempre** precisa de um `GROUP BY` e de conectar as tabelas necessárias até o dono da agregação (`ID_USUARIO`).
+Aqui está a análise profunda de cada ponto que você anotou durante a resolução:
 
-### 2. Evitando Redundância ao Buscar o Campeão
-* **A Dúvida:** Fazer `GROUP BY` e `MAX()` do lado de fora depois que o `WHERE` já pescou o valor máximo.
-* **A Regra de Ouro:** Se o seu filtro `WHERE coluna = (SELECT MAX(coluna) ...)` já garantiu que só passam as linhas do recorde máximo, você **não precisa** de `GROUP BY` nem de outro `MAX()` lá fora. É só projetar o nome do dono e a carga direto!
+---
 
-### 3. Evitando a "Contaminação" ao Cruzar Subqueries no FROM
-* **A Dúvida:** Comparar apenas a carga (`ex_maior.maior_rec = resumo.maior_record`) sem amarrar a categoria.
-* **A Regra de Ouro:** Quando você agrupa por uma categoria (ex: Grupo Muscular ou Sexo), **sempre** traga o crachá da categoria (`ID_GRP_MUSCULAR`) dentro da subquery e amarre no `ON` lá fora. Isso impede que o peso do Peitoral se junte com um exercício de Pernas por mera coincidência de valores iguais.
+### 1. "Por que não posso usar `MAX(AVG)` direto no HAVING sem subquery?" (Exercício 2A)
+* **Sua anotação:** *“Fui bem até chegar no HAVING, essa subquery me deixou confuso, não entendi por que não posso usar o `MAX(AVG)` direto.”*
 
-### 4. O Extintor de Incêndio do SQL: `NULLIF`
-* **A Regra de Ouro:** Sempre que o enunciado pedir para dividir uma soma por uma contagem (cálculo manual de média), envolva o divisor com `NULLIF(divisor, 0)`. Isso mostra maturidade de código e garante que você nunca tome erro de divisão por zero na prova.
+* **A Analogia das Caixas Fechadas na Sala de Aula:**
+  * Imagine que o professor dividiu a turma em várias mesas (Lucas, Gabriel, Mariana).
+  * O `GROUP BY` e o `HAVING` avaliam **uma mesa de cada vez**. 
+  * Quando o banco está avaliando a mesa do Lucas, ele calcula a média das cargas do Lucas (`AVG = 94.00 kg`).
+  * Para o banco saber se $94.00\text{ kg}$ é a **maior média de todas**, ele precisaria olhar para a mesa do Gabriel, da Mariana e de todo mundo ao mesmo tempo. Mas o `HAVING` do SELECT principal está **preso dentro da mesa do Lucas naquele momento**!
+  * **A Solução:** Você precisa mandar um "assistente" (a subquery entre parênteses) levantar, olhar para a sala inteira, calcular a média de cada mesa (`GROUP BY t2.ID_USUARIO`), pegar o maior número de todos (`MAX(AVG(...)) = 150.00 kg`) e entregar esse número para o professor. Aí sim o `HAVING` consegue comparar:  
+    `HAVING AVG(s.carga) = 150.00`!
 
-### 5. VIEWS: A Consulta Definitiva
-* **A Regra de Ouro:** A View é criada com `CREATE OR REPLACE VIEW nome AS <seu_select>`. Ela é consumida exatamente como uma tabela comum no `FROM` de outros comandos `SELECT`, permitindo filtros simples com `WHERE`.
+---
+
+### 2. "Por que o Jeito 1 foi meu primeiro pensamento e como mudar o mindset?" (Exercício 2B)
+* **Sua anotação:** *“Fiz dos dois jeitos após breve consulta, mas devo admitir que meu primeiro pensamento foi o Jeito 1 (com `GROUP BY` e `MAX`). Falta fixar com clareza as subqueries.”*
+
+* **A Mudança de Mindset:**
+  * No Jeito 1, você pensou: *"Preciso do maior recorde, então tenho que chamar a função `MAX()`"*. Esse é o reflexo inicial de todo mundo!
+  * **O Clique Mental:** Olhe para o `WHERE`!  
+    `WHERE r.CARGA_RECORD = (SELECT MAX(CARGA_RECORD) FROM TRE_RECORD)`
+  * Essa subquery do `WHERE` é um **filtro de elite**: ela já jogou no lixo todos os outros registros do banco e deixou passar **apenas a linha do grande campeão** (ex: `320.00 kg`).
+  * Como a linha que sobrou na esteira **já é o valor máximo absoluto**, você não precisa pedir para o banco agrupar e calcular `MAX()` de novo. Você simplesmente pede: *"Me dê o nome do exercício e a carga que está nessa linha"* (`SELECT e.NOME, r.CARGA_RECORD`).
+
+---
+
+### 3. "Confundi e coloquei o que deveria ser o ON dentro da Subquery como WHERE" (Exercício 4)
+* **Sua anotação:** *“Desafiador, mas consegui avançar quase por completo sozinho. Apenas havia confundido e colocado o que deveria ser o ON dentro da subquery como WHERE.”*
+
+* **A Analogia da Ilha Fechada e da Ponte:**
+  * Uma subquery no `FROM` é uma **ilha isolada no oceano**. Ela não consegue ver o que está no continente (as tabelas do lado de fora).
+  * Se você tentar colocar dentro dela: `WHERE r.id_exercicio = e.id_exercicio`, o banco dá erro porque o `e` mora fora da ilha!
+  * **A Regra:**
+    * **Dentro da Subquery (`WHERE` interno):** Só entram filtros que dizem respeito à própria subquery.
+    * **Fora da Subquery (`ON` do `JOIN`):** É a **ponte** que liga a ilha ao continente. É no `ON` que você diz: *"Ligue o `ID_GRP_MUSCULAR` que saiu dessa ilha com o `ID_GRP_MUSCULAR` da tabela lá de fora!"*.
+
+---
+
+### 4. O `LEFT JOIN` do Exercício 1 e a Defesa contra Zero no Exercício 3
+* **No Exercício 1:** Você usou `LEFT JOIN` entre usuário e treino. Excelente escolha defensiva, pois garante que usuários sem treino continuem no banco (mesmo que depois o `HAVING > 1` tenha filtrado apenas quem treinou mais de uma vez).
+* **No Exercício 3:** O uso de `NULLIF(COUNT(s.id_serie), 0)` funcionou perfeitamente como extintor de incêndio, provando que você já automatizou a proteção contra o erro fatal de divisão por zero.
+
 
