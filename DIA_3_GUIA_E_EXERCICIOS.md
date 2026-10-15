@@ -79,34 +79,67 @@ p_in_out ─►│ PROCEDURE (Lê e Altera)│───► p_in_out (modificado)
 
 ---
 
-### 🧪 Como Testar Procedures com Parâmetros `OUT` e `IN OUT`?
+### 🧪 Exemplo Real e Completo no nosso Banco (`IN` e `OUT`)
 
-Você não consegue testar um parâmetro `OUT` dando um simples `EXEC procedure(1, 2)`.  
-**Por quê?** Porque se a procedure vai cuspir um valor para fora, você precisa de uma **variável na sua mão para segurar esse valor que sai**!
+Veja como funciona na prática com a tabela `TRE_USUARIO` e `TRE_TREINO`.
 
-Para isso, usamos um **Bloco Anônimo de Teste**:
+#### 1. Criando a Procedure:
+Queremos uma procedure que receba o `ID_USUARIO` (`IN`) e devolva o **Nome** e a **Quantidade de Treinos** (`OUT`):
+
+```sql
+CREATE OR REPLACE PROCEDURE PRC_DADOS_USUARIO (
+    p_id_usuario    IN NUMBER,        -- ENTRA: o ID do aluno que queremos buscar
+    p_nome_usuario  OUT VARCHAR2,     -- SAI: o nome encontrado
+    p_total_treinos OUT NUMBER        -- SAI: a quantidade de treinos calculada
+)
+IS
+BEGIN
+    -- 1. Busca o nome do usuário e joga DIRETO no parâmetro OUT:
+    SELECT NOME 
+    INTO p_nome_usuario
+    FROM TRE_USUARIO
+    WHERE ID_USUARIO = p_id_usuario;
+
+    -- 2. Conta os treinos dele e joga DIRETO no outro parâmetro OUT:
+    SELECT COUNT(*)
+    INTO p_total_treinos
+    FROM TRE_TREINO
+    WHERE ID_USUARIO = p_id_usuario;
+
+    -- Fim! Não precisa de RETURN. 
+    -- Quando o código acaba, os valores que estão em p_nome_usuario e p_total_treinos saem da procedure!
+END;
+/
+```
+
+#### 2. Como Chamar e Testar na Prova (O Bloco de Teste):
+Como a procedure vai cuspir **duas respostas para fora**, você precisa de **duas "sacolas" (variáveis)** para receber o que sai:
 
 ```sql
 SET SERVEROUTPUT ON;
 
 DECLARE
-    -- Criamos as variáveis para segurar o que entra e o que sai:
-    v_peso   NUMBER := 4.00;     -- Vai entrar no IN OUT
-    v_status VARCHAR2(100);      -- Vai receber o OUT
+    -- Criamos as 2 sacolas vazias para receber o que vai sair:
+    v_nome_recebido  VARCHAR2(150);
+    v_total_recebido NUMBER;
 BEGIN
-    -- Chamamos a procedure passando as variáveis:
-    PRC_VALIDAR_CARGA(
-        p_id_usuario => 1,       -- IN (pode ser número direto)
-        p_carga      => v_peso,   -- IN OUT (passamos a variável)
-        p_msg        => v_status  -- OUT (a procedure vai preencher aqui)
-    );
+    -- Chamamos a procedure passando:
+    -- O número 1 (para o IN) e as duas sacolas (para os dois OUTs):
+    PRC_DADOS_USUARIO(1, v_nome_recebido, v_total_recebido);
 
-    -- Imprimimos os valores que foram devolvidos:
-    DBMS_OUTPUT.PUT_LINE('Peso Corrigido: ' || v_peso);
-    DBMS_OUTPUT.PUT_LINE('Mensagem: ' || v_status);
+    -- Agora que a procedure preencheu as sacolas, mostramos na tela:
+    DBMS_OUTPUT.PUT_LINE('Aluno: ' || v_nome_recebido);
+    DBMS_OUTPUT.PUT_LINE('Treinos Realizados: ' || v_total_recebido);
 END;
 /
 ```
+
+> 💡 **O Fluxo Mental:**  
+> 1. Você passa o número `1` $\rightarrow$ ele entra em `p_id_usuario` (`IN`).  
+> 2. A procedure roda os `SELECT ... INTO` e preenche os dois parâmetros `OUT`.  
+> 3. Quando a procedure termina, os valores são descarregados dentro das suas variáveis `v_nome_recebido` e `v_total_recebido`.  
+> 4. O `DBMS_OUTPUT.PUT_LINE` imprime na tela o resultado!
+
 
 ---
 
