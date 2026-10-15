@@ -336,4 +336,273 @@ Crie uma procedure chamada **`PRC_LIMPAR_TREINOS_ORFAOS`** (sem parâmetros).
 
 💡 **Dica de Raciocínio:** O comando de deleção deve filtrar os IDs de treino que não aparecem na subquery de `TRE_ITEM_TREINO` (lembre-se do filtro `IS NOT NULL`). Logo após a execução do delete, use `SQL%ROWCOUNT` para concatenar com a mensagem do `DBMS_OUTPUT.PUT_LINE`.
 
+---
+
+## 🏆 PARTE 3: RESOLUÇÕES ENVIADAS PELO ALUNO
+
+```sql
+-- ========================================================
+-- EXERCÍCIO 1: PRC_CONSULTAR_TREINOS_USUARIO
+-- ========================================================
+set serveroutput on;
+
+create or replace procedure PRC_CONSULTAR_TREINOS_USUARIO(
+    p_cod_usuario IN tre_usuario.cod_usuario%type
+)is
+    v_id_usuario tre_usuario.cod_usuario%type;
+    v_nome_usr  tre_usuario.nome%type;
+    v_qtd_treino number;
+    v_maior_treino_cod tre_treino.cod_treino%type;
+    v_dura_m_treino number;
+begin
+
+    select id_usuario
+    into v_id_usuario
+    from tre_usuario
+    where cod_usuario = p_cod_usuario;
+    
+    select
+        count(t.id_treino) as qtd_treino,
+        max(t.duracao_minuto) as maior_treino
+    into v_qtd_treino, v_dura_m_treino
+    from tre_treino t
+    where id_usuario = v_id_usuario;
+    
+    select
+        t.cod_treino
+    into v_maior_treino_cod
+    from tre_treino t
+    where t.duracao_minuto = v_dura_m_treino
+        and id_usuario = v_id_usuario;
+        
+    
+    DBMS_OUTPUT.PUT_LINE('Usuario: ' || v_nome_usr ||
+                     ' Total de Treinos: ' || v_qtd_treino ||
+                     ' cod Maior Treino: ' || v_maior_treino_cod ||
+                     ' duracao ' || v_dura_m_treino || ' minutos.');
+        
+end;
+/
+
+exec PRC_CONSULTAR_TREINOS_USUARIO('USR-001');
+
+-- ========================================================
+-- EXERCÍCIO 2: DDL + PRC_ATUALIZAR_CATEGORIAS
+-- ========================================================
+alter table tre_usuario add categoria varchar(20) default 'INICIANTE';
+
+CREATE OR REPLACE PROCEDURE PRC_ATUALIZAR_CATEGORIAS IS
+    V_STATUS_CATEGORIA TRE_USUARIO.CATEGORIA%TYPE;
+BEGIN
+
+    UPDATE TRE_USUARIO
+    SET CATEGORIA = 'AVANÇADO'
+    WHERE ID_USUARIO IN (
+        SELECT
+            ID_USUARIO
+        FROM tre_record
+        WHERE CARGA_RECORD >= 100
+    );
+    
+    DBMS_OUTPUT.PUT_LINE('Usuarios atualizados: ' || SQL%ROWCOUNT);
+    
+END;
+/
+
+EXEC PRC_ATUALIZAR_CATEGORIAS;
+
+-- ========================================================
+-- EXERCÍCIO 3: PRC_VALIDAR_PROGRESSAO (IN, OUT, IN OUT)
+-- ========================================================
+CREATE OR REPLACE PROCEDURE PRC_VALIDAR_PROGRESSAO(
+    P_ID_USUARIO IN TRE_USUARIO.ID_USUARIO%TYPE,
+    P_ID_EXERCICIO IN TRE_EXERCICIO.ID_EXERCICIO%TYPE,
+    P_CARGA_PROPOSTA IN OUT NUMBER,
+    P_MENSSAGEM_META OUT VARCHAR2
+) IS
+   V_CARGA_ALVO TRE_META.CARGA_ALVO%TYPE;  
+BEGIN
+
+    IF P_CARGA_PROPOSTA < 5 THEN
+        P_CARGA_PROPOSTA := 5;
+    END IF;
+    
+    SELECT
+        CARGA_ALVO
+    INTO V_CARGA_ALVO
+    FROM TRE_META
+    WHERE ID_EXERCICIO = P_ID_EXERCICIO 
+        AND ID_USUARIO = P_ID_USUARIO
+        AND STATUS = 'ATIVA';
+        
+    IF P_CARGA_PROPOSTA = V_CARGA_ALVO THEN
+        P_MENSSAGEM_META := 'Meta batida';
+    ELSIF P_CARGA_PROPOSTA > V_CARGA_ALVO THEN
+        P_MENSSAGEM_META := 'Meta SUPERADA';
+    ELSE
+        P_MENSSAGEM_META := 'Meta NÃO FOI SUPERADA';
+    END IF;
+    
+END;
+/
+
+-- Bloco anônimo de teste:
+SET SERVEROUTPUT ON; 
+DECLARE
+    V_CARGA_PROPOSTA NUMBER := 110;
+    V_MENSSAGEM_META VARCHAR2(100);
+BEGIN
+    PRC_VALIDAR_PROGRESSAO(1, 1, V_CARGA_PROPOSTA, V_MENSSAGEM_META);
+    DBMS_OUTPUT.PUT_LINE(V_MENSSAGEM_META);
+END;
+/
+
+-- ========================================================
+-- EXERCÍCIO 4 (DESAFIO): PRC_SINCRONIZAR_RECORDES
+-- ========================================================
+CREATE OR REPLACE PROCEDURE PRC_SINCRONIZAR_RECORDES(p_id_usuario IN TRE_USUARIO.ID_USUARIO%TYPE) IS
+    v_ultimo_num NUMBER;
+BEGIN
+    SELECT NVL(MAX(TO_NUMBER(SUBSTR(COD_RECORD, 5))), 0)
+    INTO v_ultimo_num
+    FROM TRE_RECORD;
+
+    INSERT INTO TRE_RECORD
+    (ID_USUARIO, ID_EXERCICIO, COD_RECORD, CARGA_RECORD, DATA_RECORD)
+    SELECT
+        T.ID_USUARIO,
+        IT.ID_EXERCICIO,
+        'REC-' || LPAD(v_ultimo_num + ROWNUM, 3, '0'),
+        MAX(S.CARGA),
+        T.DATA_TREINO
+    FROM TRE_TREINO T
+    INNER JOIN TRE_ITEM_TREINO IT ON T.ID_TREINO = IT.ID_TREINO
+    INNER JOIN TRE_SERIE S ON S.ID_ITEM_TREINO = IT.ID_ITEM_TREINO
+    WHERE t.ID_USUARIO = p_id_usuario   
+    GROUP BY T.ID_USUARIO, IT.ID_EXERCICIO, T.DATA_TREINO  
+    HAVING MAX(S.CARGA) > (SELECT 
+                                MAX(r.CARGA_RECORD) 
+                                FROM TRE_RECORD r 
+                                WHERE r.ID_USUARIO = t.ID_USUARIO 
+                                      AND r.ID_EXERCICIO = it.ID_EXERCICIO);
+                                      
+    DBMS_OUTPUT.PUT_LINE('RECORDS atualizados: ' || SQL%ROWCOUNT);
+END;
+/
+
+EXEC PRC_SINCRONIZAR_RECORDES(1);
+
+-- ========================================================
+-- EXERCÍCIO 5: PRC_LIMPAR_TREINOS_ORFAOS
+-- ========================================================
+create or replace procedure PRC_LIMPAR_TREINOS_ORFAOS is
+begin
+    delete from tre_treino
+    where id_treino not in (
+        select
+            id_treino
+        from TRE_ITEM_TREINO
+        where ID_TREINO IS NOT NULL
+    );
+        
+    DBMS_OUTPUT.PUT_LINE('treinos excluidos: ' || SQL%ROWCOUNT);
+end;
+/
+
+exec PRC_LIMPAR_TREINOS_ORFAOS;
+```
+
+---
+
+## 🩺 PARTE 4: DIAGNÓSTICO DETALHADO, FEEDBACK E RESPOSTA ÀS DÚVIDAS
+
+### 🔍 1. Análise do Exercício 1 (`PRC_CONSULTAR_TREINOS_USUARIO`)
+* **O que você acertou:**
+  * Divisão procedural do raciocínio em etapas lógicas com múltiplos `SELECT ... INTO`.
+  * Parâmetro tipado com `%TYPE`.
+  * Saída formatada no `DBMS_OUTPUT.PUT_LINE`.
+* ⚠️ **Pontos de Atenção Críticos para a Prova:**
+  1. **A variável fantasma `v_nome_usr`:** Você a declarou e imprimiu, mas no primeiro `SELECT` buscou apenas `id_usuario`:
+     ```sql
+     -- O que você fez:
+     select id_usuario into v_id_usuario from tre_usuario where cod_usuario = p_cod_usuario;
+     -- O que faltou:
+     select id_usuario, nome into v_id_usuario, v_nome_usr from tre_usuario where cod_usuario = p_cod_usuario;
+     ```
+     Como não houve o `INTO v_nome_usr`, ela foi para o terminal como `NULL` (vazia)!
+  2. **A armadilha do empate com `SELECT ... INTO`:** No terceiro `SELECT`:
+     ```sql
+     select t.cod_treino into v_maior_treino_cod
+     from tre_treino t
+     where t.duracao_minuto = v_dura_m_treino and id_usuario = v_id_usuario;
+     ```
+     Se o aluno tiver dois treinos que duraram exatamente 60 minutos (empate), o Oracle estoura o erro fatal `ORA-01422: exact fetch returns more than requested number of rows`.
+     * *Como blindar isso:* Adicionar `AND ROWNUM = 1` ou buscar apenas `MAX(t.cod_treino)`.
+
+---
+
+### 💡 2. A Grande Dúvida do Exercício 2: "Como fazer um UPDATE Multinível sem CTE?"
+> **Sua Pergunta:** *"Fiquei quebrando a cabeça pensando em como tornar isso multinível, tipo se tiver até 50kg INICIANTE, até 80kg INTERMEDIÁRIO, >= 100kg AVANÇADO..."*
+
+Essa é **a pergunta clássica de prova de banco de dados**! Como o professor proibiu `WITH` (CTEs), você resolve isso de forma elegante usando o **`CASE WHEN` dentro do `UPDATE`** combinado com uma **Subquery Escalar**!
+
+#### 📦 A Analogia Prática:
+Pense na tabela `TRE_USUARIO` como uma ficha de cadastro de academia. O `UPDATE` vai passar de aluno em aluno. Para cada aluno, ele abre uma gavetinha rápida no histórico (`TRE_RECORD`) para descobrir qual é o recorde máximo dele:
+* Se a gaveta voltar vazia ou $< 50$, escreve `'INICIANTE'`.
+* Se voltar entre $50$ e $79.9$, escreve `'INTERMEDIÁRIO'`.
+* Se voltar $\ge 100$, escreve `'AVANÇADO'`.
+
+#### 💻 O Código Real:
+```sql
+UPDATE TRE_USUARIO u
+SET u.CATEGORIA = CASE 
+    -- Subquery escalar: pega o recorde mais pesado da vida daquele aluno específico
+    WHEN (SELECT MAX(r.CARGA_RECORD) FROM TRE_RECORD r WHERE r.ID_USUARIO = u.ID_USUARIO) >= 100 THEN 'AVANÇADO'
+    WHEN (SELECT MAX(r.CARGA_RECORD) FROM TRE_RECORD r WHERE r.ID_USUARIO = u.ID_USUARIO) >= 80  THEN 'INTERMEDIÁRIO'
+    WHEN (SELECT MAX(r.CARGA_RECORD) FROM TRE_RECORD r WHERE r.ID_USUARIO = u.ID_USUARIO) >= 50  THEN 'INTERMEDIÁRIO'
+    ELSE 'INICIANTE'
+END;
+```
+> **Por que essa solução agrada qualquer professor?**
+> 1. É 100% padrão ANSI e Oracle.
+> 2. Não usa `WITH` (CTE) nem recursos proibidos.
+> 3. Atualiza todo mundo em um único comando atômico de banco de dados!
+
+---
+
+### 🔍 3. Análise do Exercício 3 (`PRC_VALIDAR_PROGRESSAO`)
+* **Nota: 10/10! Execução impecável.**
+* Você aplicou o `IF P_CARGA_PROPOSTA < 5 THEN P_CARGA_PROPOSTA := 5;` perfeitamente no parâmetro `IN OUT`.
+* O `IF / ELSIF / ELSE` estruturou os 3 casos de negócio com clareza.
+* O bloco anônimo de teste declarou a variável antes de chamar a procedure, respeitando exatamente a regra de memória do modo `OUT`.
+
+---
+
+### 🔍 4. Análise do Exercício 4 (`PRC_SINCRONIZAR_RECORDES`)
+* **Como você contornou o erro:** Você adicionou `T.DATA_TREINO` ao `GROUP BY`. Isso de fato eliminou o erro do Oracle (`ORA-00979`).
+* **A sutileza lógica que acontece nos bastidores:**
+  * Quando você agrupa por `T.ID_USUARIO, IT.ID_EXERCICIO, T.DATA_TREINO`, o Oracle calcula a carga máxima **daquele dia específico**, e não da história toda do usuário naquele exercício.
+  * Mas para um exercício experimental, seu raciocínio de juntar `v_ultimo_num + ROWNUM` para manter o código `REC-001` sequencial foi brilhante e muito engenhoso!
+
+---
+
+### 🔍 5. Análise do Exercício 5 (`PRC_LIMPAR_TREINOS_ORFAOS`)
+* **Nota: 10/10!**
+* Você colocou a cláusula de proteção mais importante de todas:
+  ```sql
+  where id_treino not in (
+      select id_treino from TRE_ITEM_TREINO where ID_TREINO IS NOT NULL
+  );
+  ```
+* Se não tivesse colocado o `WHERE ID_TREINO IS NOT NULL`, se houvesse qualquer linha nula na tabela filha, a consulta inteira retornaria zero deleções sem dar erro de sintaxe. Você se esquivou perfeitamente dessa pegadinha clássica de concurso e prova universitária!
+
+---
+
+### 🧹 Limpeza de Ambiente para a Prova
+Como você criou a coluna `CATEGORIA` apenas para teste da questão 3 e precisa deixar o banco no estado original do professor:
+```sql
+ALTER TABLE TRE_USUARIO DROP COLUMN CATEGORIA;
+```
+
+
 

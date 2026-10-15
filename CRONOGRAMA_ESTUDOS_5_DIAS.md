@@ -52,16 +52,16 @@ Ao puxar **VIEWS** para o Dia 2, liberamos os Dias 3, 4 e 5 para praticar **Func
 ---
 
 ### 🔹 DIA 3: DDL & DML Encapsulados em PROCEDURES
+* **Status:** ✅ Concluído
 * **Carga Horária:** ~2h00
 * **Foco Teórico:**
   * O que é uma `PROCEDURE` e por que encapsular comandos DML dentro dela.
-  * `ALTER TABLE ... ADD` para criar colunas de controle.
-  * `UPDATE` com subquery aninhada executado de dentro de uma Procedure.
-  * `INSERT INTO ... SELECT` dentro de Procedure para registrar recordes e históricos automaticamente.
-  * Parâmetros básicos `IN` e controle condicional com `IF ... THEN ... ELSE` (sem `EXCEPTION`).
-* **Prática no Banco `TRE_`:**
-  * Procedure para atualizar a categoria dos usuários (`'AVANÇADO'` / `'INICIANTE'`) via subquery (Questão 3 do professor adaptada).
-  * Procedure para registrar histórico de séries e atualizar metas.
+  * Parâmetros `IN`, `OUT` e `IN OUT` (a analogia dos envelopes).
+  * `UPDATE` com subquery aninhada executado de dentro de uma Procedure (Questão 3 adaptada).
+  * Operadores `IN` e `NOT IN` com subqueries e a proteção contra `NULL` (`IS NOT NULL`).
+  * Contador nativo `SQL%ROWCOUNT`.
+  * `DELETE` seguro com subquery aninhada.
+  * Parâmetros `IN OUT` e controle condicional com `IF ... ELSIF ... ELSE` (sem `EXCEPTION`).
 
 ---
 
@@ -97,6 +97,6 @@ Ao puxar **VIEWS** para o Dia 2, liberamos os Dias 3, 4 e 5 para praticar **Func
 | :---: | :--- | :---: |
 | **1** | Anti-Produto Cartesiano, Subqueries no SELECT/FROM, NVL, COALESCE | ✅ Concluído |
 | **2** | Agregações (GROUP BY/HAVING), Extremos (Q2, Q4) + Início de VIEWS | ✅ Concluído |
-| **3** | DDL & DML Encapsulados em PROCEDURES com Subqueries | ⏳ Em andamento |
-| **4** | PL/SQL: FUNCTIONS no SELECT + PROCEDURES com IN, OUT, IN OUT | ⬜ A fazer |
+| **3** | DDL & DML Encapsulados em PROCEDURES com Subqueries | ✅ Concluído |
+| **4** | PL/SQL: FUNCTIONS no SELECT + PROCEDURES com IN, OUT, IN OUT | ⏳ Próximo |
 | **5** | SIMULADO COMPLETO DE PROVA (Views, Procedures, Functions e SQL) | ⬜ A fazer |
