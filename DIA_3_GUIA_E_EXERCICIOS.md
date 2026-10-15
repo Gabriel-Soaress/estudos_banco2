@@ -356,8 +356,8 @@ create or replace procedure PRC_CONSULTAR_TREINOS_USUARIO(
     v_dura_m_treino number;
 begin
 
-    select id_usuario
-    into v_id_usuario
+    select id_usuario, nome
+    into v_id_usuario, v_nome_usr
     from tre_usuario
     where cod_usuario = p_cod_usuario;
     
@@ -369,13 +369,12 @@ begin
     where id_usuario = v_id_usuario;
     
     select
-        t.cod_treino
+        max(t.cod_treino)
     into v_maior_treino_cod
     from tre_treino t
     where t.duracao_minuto = v_dura_m_treino
         and id_usuario = v_id_usuario;
         
-    
     DBMS_OUTPUT.PUT_LINE('Usuario: ' || v_nome_usr ||
                      ' Total de Treinos: ' || v_qtd_treino ||
                      ' cod Maior Treino: ' || v_maior_treino_cod ||
@@ -521,23 +520,20 @@ exec PRC_LIMPAR_TREINOS_ORFAOS;
   * Divisão procedural do raciocínio em etapas lógicas com múltiplos `SELECT ... INTO`.
   * Parâmetro tipado com `%TYPE`.
   * Saída formatada no `DBMS_OUTPUT.PUT_LINE`.
-* ⚠️ **Pontos de Atenção Críticos para a Prova:**
-  1. **A variável fantasma `v_nome_usr`:** Você a declarou e imprimiu, mas no primeiro `SELECT` buscou apenas `id_usuario`:
+  * **Correção aplicada:** Você atualizou o código buscando `id_usuario, nome` no primeiro `SELECT` e aplicando `MAX(t.cod_treino)` no terceiro `SELECT`!
+
+* ⚠️ **Os Dois Perigos Mortais de Prova que Você Dominou:**
+  1. **A variável fantasma:** Quando você declara `v_nome_usr`, mas não coloca ela na cláusula `INTO`, o Oracle compila normalmente, mas ela chega no terminal como `NULL`. Bastava fazer:
      ```sql
-     -- O que você fez:
-     select id_usuario into v_id_usuario from tre_usuario where cod_usuario = p_cod_usuario;
-     -- O que faltou:
      select id_usuario, nome into v_id_usuario, v_nome_usr from tre_usuario where cod_usuario = p_cod_usuario;
      ```
-     Como não houve o `INTO v_nome_usr`, ela foi para o terminal como `NULL` (vazia)!
-  2. **A armadilha do empate com `SELECT ... INTO`:** No terceiro `SELECT`:
-     ```sql
-     select t.cod_treino into v_maior_treino_cod
-     from tre_treino t
-     where t.duracao_minuto = v_dura_m_treino and id_usuario = v_id_usuario;
-     ```
-     Se o aluno tiver dois treinos que duraram exatamente 60 minutos (empate), o Oracle estoura o erro fatal `ORA-01422: exact fetch returns more than requested number of rows`.
-     * *Como blindar isso:* Adicionar `AND ROWNUM = 1` ou buscar apenas `MAX(t.cod_treino)`.
+  2. **A armadilha do empate (A Analogia da Cadeira Única):**
+     > 🪑 **A analogia:** O comando `SELECT ... INTO` no PL/SQL funciona como uma **cadeira com um único assento**. Ele foi feito para acomodar **exatamente uma linha**. Se um aluno tiver dois treinos que empataram com o mesmo tempo máximo (ex: dois treinos de 60 minutos), o `SELECT` tenta sentar duas linhas na mesma cadeira. A cadeira quebra e o Oracle cospe o temido erro:  
+     > `ORA-01422: exact fetch returns more than requested number of rows`.
+     
+     **Como blindar contra empates (Duas Formas):**
+     * **Forma 1 (Recomendada - O que você adotou):** Usar função agregadora como `MAX(t.cod_treino)`. Como tem função de grupo, o Oracle garante que o retorno será matematicamente uma única linha.
+     * **Forma 2:** Adicionar `AND ROWNUM = 1` no `WHERE`, forçando o Oracle a parar na primeira ocorrência encontrada.
 
 ---
 
