@@ -97,6 +97,6 @@ Ao puxar **VIEWS** para o Dia 2, liberamos os Dias 3, 4 e 5 para praticar **Func
 | :---: | :--- | :---: |
 | **1** | Anti-Produto Cartesiano, Subqueries no SELECT/FROM, NVL, COALESCE | ✅ Concluído |
 | **2** | Agregações (GROUP BY/HAVING), Extremos (Q2, Q4) + Início de VIEWS | ✅ Concluído |
-| **3** | DDL & DML Encapsulados em PROCEDURES com Subqueries | ⏳ Próximo |
+| **3** | DDL & DML Encapsulados em PROCEDURES com Subqueries | ⏳ Em andamento |
 | **4** | PL/SQL: FUNCTIONS no SELECT + PROCEDURES com IN, OUT, IN OUT | ⬜ A fazer |
 | **5** | SIMULADO COMPLETO DE PROVA (Views, Procedures, Functions e SQL) | ⬜ A fazer |
