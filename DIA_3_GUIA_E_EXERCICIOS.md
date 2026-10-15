@@ -320,30 +320,7 @@ Crie uma procedure chamada **`PRC_VALIDAR_PROGRESSAO`** que receba:
 
 ---
 
-### 🎯 EXERCÍCIO 4 (INSERT INTO ... SELECT com Subquery Aninhada em Procedure)
-Crie uma procedure chamada **`PRC_SINCRONIZAR_RECORDES`** que receba:
-* `p_id_usuario IN NUMBER`
-
-**Regras de Negócio da Procedure:**
-A procedure deve executar um comando `INSERT INTO TRE_RECORD (ID_USUARIO, ID_EXERCICIO, COD_RECORD, CARGA_RECORD, DATA_RECORD)` selecionando diretamente das séries realizadas por esse usuário (`TRE_SERIE`) as maiores cargas levantadas em cada exercício que sejam estritamente superiores ao maior recorde atual daquele usuário naquele exercício (ou onde ele ainda não tenha recorde cadastrado).
-* **Padrão Sequencial do `COD_RECORD`:** Manter a mesma sequência oficial do banco (`'REC-001'`, `'REC-002'`, ...). Para continuar a partir do último número cadastrado (ex: `REC-023`, `REC-024`), use a contagem sequencial:  
-  `'REC-' || LPAD(TO_CHAR((SELECT NVL(MAX(TO_NUMBER(SUBSTR(COD_RECORD, 5))), 0) FROM TRE_RECORD) + ROWNUM), 3, '0')`
-* A data do recorde deve ser `TRUNC(SYSDATE)`.
-* Ao final, imprima no terminal com `DBMS_OUTPUT.PUT_LINE` quantos novos recordes foram inseridos usando `SQL%ROWCOUNT`.
-
-**Exigências:**
-* Usar `INSERT INTO ... SELECT ...`.
-* Usar subquery aninhada para checar se a carga da série é maior que o recorde atual do usuário.
-* Respeitar o padrão sequencial `REC-XXX`.
-* Usar `SQL%ROWCOUNT`.
-* Sem bloco `EXCEPTION`.
-
-💡 **Dica de Raciocínio:** O `INSERT INTO ... SELECT` agrupa séries por usuário e exercício calculando `MAX(s.CARGA)`. Na cláusula `HAVING` do `SELECT`, compare se `MAX(s.CARGA) > (SELECT NVL(MAX(r.CARGA_RECORD), 0) FROM TRE_RECORD r WHERE r.ID_USUARIO = t.ID_USUARIO AND r.ID_EXERCICIO = it.ID_EXERCICIO)`. Para o código sequencial, a fórmula com `LPAD(..., 3, '0')` garante o formato exato `REC-023`.
-
-
----
-
-### 🎯 EXERCÍCIO 5 (DELETE Seguro com NOT IN e Proteção IS NOT NULL)
+### 🎯 EXERCÍCIO 4 (DELETE Seguro com NOT IN e Proteção IS NOT NULL)
 Crie uma procedure chamada **`PRC_LIMPAR_TREINOS_ORFAOS`** (sem parâmetros).
 
 **Regras de Negócio da Procedure:**
@@ -357,5 +334,6 @@ Crie uma procedure chamada **`PRC_LIMPAR_TREINOS_ORFAOS`** (sem parâmetros).
 * Usar `SQL%ROWCOUNT` e `DBMS_OUTPUT.PUT_LINE`.
 * Sem bloco `EXCEPTION`.
 
-💡 **Dica de Raciocínio:** O comando fica `DELETE FROM TRE_TREINO WHERE ID_TREINO NOT IN (SELECT DISTINCT ID_TREINO FROM TRE_ITEM_TREINO WHERE ID_TREINO IS NOT NULL);`. Em seguida, imprima o total de excluídos com `SQL%ROWCOUNT`.
+💡 **Dica de Raciocínio:** O comando de deleção deve filtrar os IDs de treino que não aparecem na subquery de `TRE_ITEM_TREINO` (lembre-se do filtro `IS NOT NULL`). Logo após a execução do delete, use `SQL%ROWCOUNT` para concatenar com a mensagem do `DBMS_OUTPUT.PUT_LINE`.
+
 
