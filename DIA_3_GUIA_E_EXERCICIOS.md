@@ -195,7 +195,47 @@ WHERE ID_TREINO NOT IN (
 
 ---
 
-### 1.4 O Contador Secreto do Oracle: `SQL%ROWCOUNT`
+### 1.4 Operadores de Conjunto: `IN` e `NOT IN` com Subqueries
+
+Cuidado para não confundir:
+* Uma coisa é o **modo de parâmetro `IN`** da Procedure (`p_id IN NUMBER`), que significa "somente-leitura".
+* Outra coisa completamente diferente são os **operadores `IN` e `NOT IN`** usados no `WHERE` das consultas SQL!
+
+#### 🎟️ 1. O Operador `IN` (A Lista de Convidados VIP)
+Ele verifica se o valor da linha pertence a uma lista gerada por uma subquery:
+```sql
+UPDATE TRE_USUARIO
+SET CATEGORIA = 'AVANÇADO'
+WHERE ID_USUARIO IN (
+    SELECT DISTINCT ID_USUARIO 
+    FROM TRE_RECORD 
+    WHERE CARGA_RECORD >= 100
+);
+```
+> **Como o banco lê:** A subquery gera uma listinha de IDs que levantaram mais de 100kg (ex: `1, 2, 4`). O `UPDATE` só altera os usuários cujo `ID_USUARIO` estiver dentro dessa lista!
+
+#### 🚫 2. O Operador `NOT IN` (A Lista Negra)
+Ele faz o inverso: só deixa passar quem **NÃO** está na lista gerada pela subquery:
+```sql
+SELECT * FROM TRE_EXERCICIO
+WHERE ID_EXERCICIO NOT IN (
+    SELECT DISTINCT ID_EXERCICIO FROM TRE_ITEM_TREINO
+);
+```
+*(Tradução: Traga todos os exercícios cadastrados que **NUNCA** foram usados em nenhum treino).*
+
+> ⚠️ **A PEGADINHA MORTAL DE PROVA: O `NULL` no `NOT IN`!**  
+> Se a subquery de dentro do `NOT IN` devolver **um único valor `NULL`**, a consulta inteira trava e **devolve ZERO linhas** (nada)!  
+> **A Regra de Ouro:** Sempre que usar `NOT IN` com subquery, garanta que não venham nulos colocando `WHERE coluna IS NOT NULL` dentro da subquery:
+> ```sql
+> WHERE ID_EXERCICIO NOT IN (
+>     SELECT ID_EXERCICIO FROM TRE_ITEM_TREINO WHERE ID_EXERCICIO IS NOT NULL
+> )
+> ```
+
+---
+
+### 1.5 O Contador Secreto do Oracle: `SQL%ROWCOUNT`
 
 Sempre que você roda um `UPDATE`, `INSERT` ou `DELETE` dentro de uma Procedure, o Oracle atualiza automaticamente uma variável oculta chamada **`SQL%ROWCOUNT`**.
 * Ela guarda **o número exato de linhas que foram afetadas** pelo último comando DML executado!
@@ -204,6 +244,7 @@ Sempre que você roda um `UPDATE`, `INSERT` ou `DELETE` dentro de uma Procedure,
   UPDATE TRE_USUARIO SET CATEGORIA = 'AVANÇADO' WHERE ...;
   DBMS_OUTPUT.PUT_LINE('Total de alunos promovidos: ' || SQL%ROWCOUNT);
   ```
+
 
 ---
 
@@ -296,3 +337,22 @@ A procedure deve executar um comando `INSERT INTO TRE_RECORD (ID_USUARIO, ID_EXE
 * Sem bloco `EXCEPTION`.
 
 💡 **Dica de Raciocínio:** O `INSERT INTO ... SELECT` agrupa séries por usuário e exercício calculando `MAX(s.CARGA)`. Na cláusula `HAVING` do `SELECT`, compare se `MAX(s.CARGA) > (SELECT NVL(MAX(r.CARGA_RECORD), 0) FROM TRE_RECORD r WHERE r.ID_USUARIO = t.ID_USUARIO AND r.ID_EXERCICIO = it.ID_EXERCICIO)`.
+
+---
+
+### 🎯 EXERCÍCIO 5 (DELETE Seguro com NOT IN e Proteção IS NOT NULL)
+Crie uma procedure chamada **`PRC_LIMPAR_TREINOS_ORFAOS`** (sem parâmetros).
+
+**Regras de Negócio da Procedure:**
+1. A procedure deve executar um comando `DELETE` na tabela `TRE_TREINO` removendo todos os treinos que não possuem nenhum item associado na tabela `TRE_ITEM_TREINO`.
+2. A condição de exclusão deve usar obrigatoriamente `WHERE ID_TREINO NOT IN (SELECT ...)` garantindo a proteção contra nulos com `WHERE ID_TREINO IS NOT NULL`.
+3. Ao final, imprima com `DBMS_OUTPUT.PUT_LINE` a quantidade de treinos órfãos removidos usando `SQL%ROWCOUNT`.
+
+**Exigências:**
+* Usar `DELETE` com subquery aninhada usando `NOT IN`.
+* Usar `WHERE ID_TREINO IS NOT NULL` dentro da subquery do `NOT IN`.
+* Usar `SQL%ROWCOUNT` e `DBMS_OUTPUT.PUT_LINE`.
+* Sem bloco `EXCEPTION`.
+
+💡 **Dica de Raciocínio:** O comando fica `DELETE FROM TRE_TREINO WHERE ID_TREINO NOT IN (SELECT DISTINCT ID_TREINO FROM TRE_ITEM_TREINO WHERE ID_TREINO IS NOT NULL);`. Em seguida, imprima o total de excluídos com `SQL%ROWCOUNT`.
+
