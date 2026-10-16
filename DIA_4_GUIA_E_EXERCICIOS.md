@@ -167,6 +167,41 @@ END;
 
 ---
 
+#### ❓ Dúvida Crucial: "E se eu NÃO usar o `*` no `SELECT ... INTO` com `%ROWTYPE`?"
+
+Se você tentar jogar menos colunas diretamente na variável inteira `%ROWTYPE`, o Oracle vai chiar com erro:
+
+```sql
+DECLARE
+    v_meta TRE_META%ROWTYPE;
+BEGIN
+    -- ❌ ERRO! ORA-00947 (não há valores suficientes) ou PLS-00386 (incompatibilidade de tipos)
+    SELECT ID_META, COD_META
+    INTO v_meta
+    FROM TRE_META
+    WHERE ID_META = 1;
+END;
+```
+
+> 🥚 **A Analogia da Caixa de Ovos:**  
+> A variável `%ROWTYPE` de `TRE_META` é como uma **caixa com 9 slots de ovos** (um para cada coluna da tabela).  
+> Quando você faz `SELECT * INTO v_meta`, chegam os 9 ovos e cada um se acomoda no seu slot correto.  
+> Se você faz `SELECT ID_META, COD_META INTO v_meta`, chegam apenas 2 ovos. O Oracle se recusa a fechar a caixa dizendo: *"Estão faltando valores para preencher o registro completo!"*.
+
+##### ✅ Como resolver isso:
+
+* **Opção 1 (Padrão e Recomendada):** Use o `SELECT * INTO v_meta`. O Oracle preenche todos os campos e você simplesmente acessa apenas os que quiser via `v_meta.NOME_COLUNA`.
+* **Opção 2 (Apontando para a gaveta individual):** Se você quer buscar apenas uma coluna sem trazer tudo, direcione explicitamente com o ponto `.`:
+  ```sql
+  SELECT COD_META
+  INTO v_meta.COD_META -- Aponta para a gaveta exata!
+  FROM TRE_META
+  WHERE ID_META = 1;
+  -- Aqui apenas v_meta.COD_META terá valor. Os outros campos continuam NULL.
+  ```
+
+---
+
 ## 📝 PARTE 2: ATIVIDADES PRÁTICAS DO DIA 4
 
 ---
