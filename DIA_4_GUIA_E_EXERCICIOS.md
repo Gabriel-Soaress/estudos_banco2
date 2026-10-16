@@ -95,6 +95,21 @@ Como o seu professor proibiu o bloco `EXCEPTION`, como garantimos que uma Functi
 
 ---
 
+### 1.6 O Casamento entre Meta e Recorde (A Linha do Tempo da Vigência)
+
+> 🎟️ **A Analogia do Ingresso de Academia:**  
+> Imagine que você comprou um plano trimestral na academia válido de **01/01 a 31/03**.  
+> Qualquer treino, recorde ou evolução que você conquistar nesse período pertence a esse plano específico. Se você bater um recorde no dia 15/04, ele já pertence ao plano seguinte!
+
+No banco de dados, a tabela `TRE_META` não tem uma chave estrangeira direta para cada linha de `TRE_RECORD`. **Eles se conectam pela Linha do Tempo (Vigência Temporal)**:
+* **Usuário e Exercício em Comum:** `r.ID_USUARIO = m.ID_USUARIO AND r.ID_EXERCICIO = m.ID_EXERCICIO`
+* **Vigência da Meta:** O recorde foi batido dentro do período da meta:  
+  `r.DATA_RECORD BETWEEN m.DATA_CRIACAO AND NVL(m.DATA_CONCLUSAO, m.DATA_ALVO)`
+* **Vínculo com a Série Real:** E como descobrir em qual série exata aquele recorde foi gerado?  
+  Ligando a data do recorde com a data do treino (`TRUNC(t.DATA_TREINO) = TRUNC(r.DATA_RECORD)`), no exercício correspondente (`it.ID_EXERCICIO = r.ID_EXERCICIO`), achando a série exata onde `s.CARGA = r.CARGA_RECORD`!
+
+---
+
 ## 📝 PARTE 2: ATIVIDADES PRÁTICAS DO DIA 4
 
 ---
@@ -165,7 +180,8 @@ Crie uma procedure chamada **`PRC_REGISTRAR_SERIE`** que receba:
    * Se `p_repeticoes < 1`, a procedure deve corrigir o valor na memória para `1` (`p_repeticoes := 1;`).
 2. **Persistência dos dados (DML):**
    * Gere o próximo `ID_SERIE` sequencial (`SELECT NVL(MAX(ID_SERIE), 0) + 1 INTO v_novo_id FROM TRE_SERIE;`).
-   * Execute o comando `INSERT INTO TRE_SERIE (ID_SERIE, ID_ITEM_TREINO, NUM_SERIE, CARGA, REPETICOES)` inserindo os valores com os parâmetros ajustados.
+   * Gere o código da série sequencial formatado: `'SER-' || LPAD(v_novo_id, 3, '0')`.
+   * Execute o comando `INSERT INTO TRE_SERIE (ID_SERIE, ID_ITEM_TREINO, COD_SERIE, NUMERO_SERIE, CARGA, REPETICOES)` inserindo os valores com os parâmetros ajustados.
 3. **Retorno do Status no `OUT`:**
    * Se a inserção foi concluída com sucesso (`SQL%ROWCOUNT = 1`), atribua:  
      `p_status_gravacao := 'SERIE REGISTRADA COM SUCESSO (ID: ' || v_novo_id || ')';`
@@ -200,4 +216,39 @@ Crie uma procedure chamada **`PRC_ATUALIZAR_RECORDES_USUARIO`** que receba:
 * Sem bloco `EXCEPTION`.
 
 💡 **Dica de Raciocínio:** O comando fica extremamente limpo: `UPDATE TRE_RECORD r SET r.CARGA_RECORD = FNC_MAIOR_CARGA_USUARIO(p_id_usuario, r.ID_EXERCICIO), r.DATA_RECORD = TRUNC(SYSDATE) WHERE r.ID_USUARIO = p_id_usuario AND FNC_MAIOR_CARGA_USUARIO(p_id_usuario, r.ID_EXERCICIO) > r.CARGA_RECORD;`. Em seguida, exiba o `SQL%ROWCOUNT`.
+
+---
+
+### 🎯 EXERCÍCIO 5 (Conexão Temporal: Recordes na Vigência da Meta)
+Crie uma função chamada **`FNC_RECORDES_NA_VIGENCIA_META`** que receba:
+* `p_id_meta IN NUMBER`
+
+**Regras de Negócio da Função:**
+1. A função deve retornar um `NUMBER`.
+2. Ela deve buscar na tabela `TRE_META` os seguintes dados da meta recebida:
+   * `ID_USUARIO`
+   * `ID_EXERCICIO`
+   * `DATA_CRIACAO`
+   * `DATA_CONCLUSAO`
+   * `DATA_ALVO`
+3. A vigência da meta se encerra na data em que ela foi concluída (`DATA_CONCLUSAO`). Se ela ainda não foi concluída (`DATA_CONCLUSAO IS NULL`), a vigência vai até a sua data limite estipulada (`DATA_ALVO`). Dica: use `NVL(DATA_CONCLUSAO, DATA_ALVO)`.
+4. Conte quantos recordes foram registrados na tabela `TRE_RECORD` para esse mesmo usuário e exercício cuja `DATA_RECORD` esteja dentro do período:  
+   `DATA_RECORD BETWEEN DATA_CRIACAO AND NVL(DATA_CONCLUSAO, DATA_ALVO)`
+5. Retorne a quantidade total de recordes encontrados (ou `0` se nenhum).
+6. **Chamada obrigatória no `SELECT`:**
+   Escreva uma consulta na tabela `TRE_META` exibindo:
+   * `COD_META`
+   * `CARGA_ALVO`
+   * `STATUS`
+   * A chamada da função **`FNC_RECORDES_NA_VIGENCIA_META(ID_META)`** com o alias `TOTAL_RECORDES_VIGENCIA`.
+
+**Exigências:**
+* Usar `CREATE OR REPLACE FUNCTION`.
+* Retornar `NUMBER`.
+* Lógica temporal com `BETWEEN` e `NVL`.
+* Sem bloco `EXCEPTION`.
+* Apresentar o comando `SELECT` consumindo a função.
+
+💡 **Dica de Raciocínio:** Busque os dados da meta em variáveis locais (`v_id_usuario, v_id_exercicio, v_dt_inicio, v_dt_fim`). Em seguida, faça um `SELECT COUNT(*) INTO v_qtd FROM TRE_RECORD WHERE ID_USUARIO = v_id_usuario AND ID_EXERCICIO = v_id_exercicio AND DATA_RECORD BETWEEN v_dt_inicio AND v_dt_fim;`. Retorne `v_qtd`.
+
 
