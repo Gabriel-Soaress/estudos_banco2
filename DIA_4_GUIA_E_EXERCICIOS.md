@@ -202,6 +202,39 @@ END;
 
 ---
 
+### 1.8 A Regra Inegociável dos Parâmetros `OUT` e `IN OUT`: Por que DEVEM ser Variáveis?
+
+Tanto parâmetros **`OUT`** quanto **`IN OUT`** exigem que quem chamou passe uma **variável real declarada em memória**. Você **NUNCA** pode passar um valor literal (fixo como `10` ou `'TEXTO'`) ou coluna direta de tabela!
+
+#### ✉️ A Analogia do Envelope:
+* **Parâmetro `IN` (A Foto para Olhar):** Você pode mostrar uma foto impressa, uma foto no celular ou um outdoor (`10`, `'AVANÇADO'`, ou uma variável). A procedure só vai **ler/olhar**, ela não precisa alterar nada.
+* **Parâmetros `OUT` e `IN OUT` (O Envelope de Papel):** A procedure vai **escrever um valor dentro dele** para te devolver.
+  * Você **não pode** entregar uma parede de tijolos ou uma pedra sólida (um número fixo como `10` ou `'TEXTO'`) e mandar a procedure escrever dentro dela. O Oracle trava na hora com o erro:  
+    `PLS-00363: expression cannot be used as an assignment target`.
+  * Você é **obrigado** a entregar um envelope de verdade onde ela consiga escrever (uma variável de memória declarada com `DECLARE v_peso NUMBER := 10;`).
+
+```sql
+-- ❌ O QUE NUNCA FUNCIONA (Dá erro de compilação PLS-00363):
+-- Passar números literais (-5 e 0) para parâmetros que são IN OUT:
+EXEC PRC_REGISTRAR_SERIE(1, 1, -5, 0, v_status); 
+
+-- ✅ O QUE É OBRIGATÓRIO FAZER (Bloco Anônimo com envelopes criados):
+DECLARE
+    v_carga_teste NUMBER := -5;  -- Envelope com valor de entrada (IN OUT)
+    v_reps_teste  NUMBER := 0;   -- Envelope com valor de entrada (IN OUT)
+    v_status_out  VARCHAR2(100); -- Envelope vazio para a resposta (OUT)
+BEGIN
+    PRC_REGISTRAR_SERIE(1, 1, v_carga_teste, v_reps_teste, v_status_out);
+
+    -- Ao final, as variáveis locais foram modificadas pela procedure:
+    DBMS_OUTPUT.PUT_LINE(v_status_out);
+    DBMS_OUTPUT.PUT_LINE('Nova Carga: ' || v_carga_teste); -- Agora vale 1!
+END;
+/
+```
+
+---
+
 ## 📝 PARTE 2: ATIVIDADES PRÁTICAS DO DIA 4
 
 ---
