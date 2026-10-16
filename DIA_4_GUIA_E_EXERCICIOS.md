@@ -110,6 +110,63 @@ No banco de dados, a tabela `TRE_META` não tem uma chave estrangeira direta par
 
 ---
 
+### 1.7 O Super Poder do `%ROWTYPE` (A Maleta de Ferramentas Completa)
+
+Você já usou `%TYPE` nos dias anteriores (`v_nome tre_usuario.nome%TYPE`). Agora é hora de subir de nível com o **`%ROWTYPE`**.
+
+#### 🧰 A Analogia do Cotidiano:
+* **`%TYPE` (A Chave Avulsa):** Você vai na loja e compra uma única chave de fenda de 10mm para mexer em um parafuso específico. Ele copia o tipo de **uma única coluna** da tabela.
+* **`%ROWTYPE` (A Maleta Completa de Ferramentas):** Você compra a maleta oficial da montadora. Dentro dela já vem **todas as ferramentas encaixadas** em seus devidos lugares! Ele cria uma variável especial (chamada de *Record*) que espelha **uma linha inteira da tabela de uma só vez**!
+
+---
+
+#### 🆚 Comparativo Prático: Como você fazia vs Como você pode fazer agora
+
+##### ❌ O Jeito Trabalhoso (Declarando variável por variável):
+Para buscar os dados de uma meta, você tinha que declarar uma por uma:
+```sql
+DECLARE
+    v_id_usuario    NUMBER;
+    v_id_exercicio  NUMBER;
+    v_carga_alvo    NUMBER(6,2);
+    v_data_criacao  DATE;
+    v_data_alvo     DATE;
+BEGIN
+    SELECT ID_USUARIO, ID_EXERCICIO, CARGA_ALVO, DATA_CRIACAO, DATA_ALVO
+    INTO v_id_usuario, v_id_exercicio, v_carga_alvo, v_data_criacao, v_data_alvo
+    FROM TRE_META
+    WHERE ID_META = 1;
+END;
+```
+
+##### ✅ O Jeito Elegante com `%ROWTYPE`:
+Você declara **apenas uma única variável** para a linha inteira:
+```sql
+DECLARE
+    v_meta TRE_META%ROWTYPE; -- Cria a maleta completa com todas as colunas de TRE_META!
+BEGIN
+    -- O SELECT * joga a linha inteira para dentro da maleta de uma vez só:
+    SELECT *
+    INTO v_meta
+    FROM TRE_META
+    WHERE ID_META = 1;
+
+    -- Para acessar qualquer campo, basta usar "ponto" (v_meta.NOME_DA_COLUNA):
+    DBMS_OUTPUT.PUT_LINE('Usuario: '    || v_meta.ID_USUARIO);
+    DBMS_OUTPUT.PUT_LINE('Exercicio: '  || v_meta.ID_EXERCICIO);
+    DBMS_OUTPUT.PUT_LINE('Carga Alvo: ' || v_meta.CARGA_ALVO);
+    DBMS_OUTPUT.PUT_LINE('Criado em: '  || v_meta.DATA_CRIACAO);
+END;
+/
+```
+
+> 💡 **Vantagens de Ouro para a Prova:**
+> 1. **Economiza dezenas de linhas de código:** Você não perde tempo digitando lista imensa de variáveis no `DECLARE` e nem no `INTO`.
+> 2. **Imune a mudanças de tipo:** Se o professor alterar o tipo de qualquer coluna da tabela, o seu código continua funcionando perfeitamente sem precisar mudar nenhuma declaração!
+> 3. **Perfeito para Functions e Procedures:** Quando você precisa consultar os dados cadastrais de uma meta ou usuário para tomar decisões com `IF/ELSE`, o `%ROWTYPE` deixa seu código extremamente limpo.
+
+---
+
 ## 📝 PARTE 2: ATIVIDADES PRÁTICAS DO DIA 4
 
 ---
