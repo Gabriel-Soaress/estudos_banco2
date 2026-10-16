@@ -45,34 +45,33 @@ Cada célula do `SELECT` espera **exatamente um valor** (um número, um texto ou
 ### 1.3 A Anatomia Perfeita de uma FUNCTION
 
 ```sql
-CREATE OR REPLACE FUNCTION FNC_NOME_DA_FUNCAO (
-    p_parametro1 IN NUMBER,
-    p_parametro2 IN VARCHAR2
-) RETURN NUMBER -- 1. DECLARA O TIPO DE RETORNO AQUI NO CABEÇALHO
+CREATE OR REPLACE FUNCTION FNC_TOTAL_TREINOS_USUARIO (
+    p_id_usuario IN NUMBER -- Apenas o parâmetro que realmente será usado!
+) RETURN NUMBER          -- 1. DECLARA O TIPO DE RETORNO AQUI NO CABEÇALHO
 IS
-    v_resultado NUMBER := 0; -- Variável local para guardar o cálculo
+    v_total NUMBER := 0; -- Variável local para guardar o cálculo
 BEGIN
-    -- 2. CORPO DA FUNÇÃO: cálculos ou consultas
+    -- 2. CORPO DA FUNÇÃO: calcula o total de treinos do usuário
     SELECT COUNT(*)
-    INTO v_resultado
+    INTO v_total
     FROM TRE_TREINO
-    WHERE ID_USUARIO = p_parametro1;
+    WHERE ID_USUARIO = p_id_usuario;
 
     -- 3. OBRIGATÓRIO: CUSPIR O VALOR DE VOLTA
-    RETURN v_resultado;
+    RETURN v_total;
 END;
 /
 ```
 
 #### Como chamar a Function:
-1. **Direto em uma consulta `SELECT`:**
+1. **Direto em uma consulta `SELECT` (como fórmula do Excel):**
    ```sql
-   SELECT NOME, FNC_NOME_DA_FUNCAO(ID_USUARIO, 'X') AS TOTAL
+   SELECT NOME, FNC_TOTAL_TREINOS_USUARIO(ID_USUARIO) AS TOTAL_TREINOS
    FROM TRE_USUARIO;
    ```
 2. **Dentro de um bloco anônimo ou Procedure:**
    ```sql
-   v_valor := FNC_NOME_DA_FUNCAO(1, 'TESTE');
+   v_valor := FNC_TOTAL_TREINOS_USUARIO(1);
    ```
 
 ---
@@ -184,19 +183,21 @@ Crie uma procedure chamada **`PRC_REGISTRAR_SERIE`** que receba:
 
 ---
 
-### 🎯 EXERCÍCIO 4 (Procedure com UPDATE Analítico Baseado em Condições)
+### 🎯 EXERCÍCIO 4 (Modularização: Procedure Consumindo Function)
 Crie uma procedure chamada **`PRC_ATUALIZAR_RECORDES_USUARIO`** que receba:
 * `p_id_usuario IN NUMBER`
 
 **Regras de Negócio da Procedure:**
-1. Em vez de comandos manuais, a procedure deve rodar um `UPDATE` na tabela `TRE_RECORD` atualizando o campo `CARGA_RECORD` para a maior carga encontrada nas séries daquele usuário naquele exercício (`MAX(s.CARGA)` de `TRE_SERIE`), e atualizando `DATA_RECORD = TRUNC(SYSDATE)`.
-2. A atualização só deve ocorrer **se** a maior carga encontrada nas séries for estritamente maior que a carga atual cadastrada em `TRE_RECORD` (usando subquery aninhada no `WHERE`).
-3. Ao final, imprima com `DBMS_OUTPUT.PUT_LINE`:  
-   `"Recordes superados e atualizados: " || SQL%ROWCOUNT`
+1. A procedure deve rodar um `UPDATE` na tabela `TRE_RECORD` para atualizar os recordes do usuário informado (`p_id_usuario`).
+2. **Reuso de Código (Padrão de Prova):** Em vez de reescrever queries complexas e repetidas de séries dentro do comando, **chame diretamente a função que você criou no Exercício 1** (`FNC_MAIOR_CARGA_USUARIO(p_id_usuario, r.ID_EXERCICIO)`) para obter a nova carga e também para verificar na cláusula `WHERE` se a carga calculada pela função é estritamente maior que `r.CARGA_RECORD`.
+3. Ao atualizar a carga com o retorno da função, atualize também a data do recorde para `DATA_RECORD = TRUNC(SYSDATE)`.
+4. Ao final, imprima com `DBMS_OUTPUT.PUT_LINE` a quantidade de recordes superados e atualizados usando `SQL%ROWCOUNT`.
 
 **Exigências:**
-* Usar `UPDATE` com subquery aninhada correlacionada.
-* Usar `SQL%ROWCOUNT`.
+* Usar comando `UPDATE` na tabela `TRE_RECORD`.
+* Chamar obrigatoriamente a função `FNC_MAIOR_CARGA_USUARIO` dentro do `UPDATE` (no `SET` e no `WHERE`).
+* Usar `SQL%ROWCOUNT` e `DBMS_OUTPUT.PUT_LINE`.
 * Sem bloco `EXCEPTION`.
 
-💡 **Dica de Raciocínio:** No `UPDATE TRE_RECORD r SET CARGA_RECORD = (SELECT MAX(s.CARGA) FROM ...) WHERE r.ID_USUARIO = p_id_usuario AND (SELECT MAX(s.CARGA) FROM ...) > r.CARGA_RECORD;`. Assim você atualiza apenas os recordes que foram de fato batidos!
+💡 **Dica de Raciocínio:** O comando fica extremamente limpo: `UPDATE TRE_RECORD r SET r.CARGA_RECORD = FNC_MAIOR_CARGA_USUARIO(p_id_usuario, r.ID_EXERCICIO), r.DATA_RECORD = TRUNC(SYSDATE) WHERE r.ID_USUARIO = p_id_usuario AND FNC_MAIOR_CARGA_USUARIO(p_id_usuario, r.ID_EXERCICIO) > r.CARGA_RECORD;`. Em seguida, exiba o `SQL%ROWCOUNT`.
+
