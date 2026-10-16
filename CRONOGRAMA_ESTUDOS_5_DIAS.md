@@ -66,22 +66,28 @@ Ao puxar **VIEWS** para o Dia 2, liberamos os Dias 3, 4 e 5 para praticar **Func
 ---
 
 ### 🔹 DIA 4: PL/SQL Avançado: FUNCTIONS & Parâmetros IN, OUT e IN OUT
+* **Status:** ✅ Concluído
 * **Carga Horária:** ~2h00
 * **Foco Teórico:**
   * **FUNCTIONS:** A cláusula `RETURN`, retorno de valores calculados e chamada direta dentro de comandos `SELECT`.
   * **Diferença crucial de parâmetros em Procedures:**
     * `IN`: leitura apenas.
-    * `OUT`: escrita e retorno de valores.
+    * `OUT`: escrita e retorno de valores (obrigatoriamente variáveis de memória).
     * `IN OUT`: entra com valor, modifica e devolve atualizado.
-  * Funções condicionais e formatações (`CASE WHEN`, `TO_CHAR`).
-* **Prática no Banco `TRE_`:**
-  * Function que recebe `(ID_USUARIO, ID_EXERCICIO)` e retorna a maior carga já executada nas séries.
-  * Function que retorna a % de conclusão de uma meta ativa.
-  * Procedure completa usando `IN`, `OUT` e `IN OUT` para inserção, validação de pesos e retorno de status.
+  * O poder do `%ROWTYPE` (a maleta completa da tabela).
+  * Vigência temporal de metas e cruzamento com recordes (`BETWEEN`).
+  * Procedimento modularizado consumindo Function dentro do `UPDATE`.
+* **Prática no Banco `TRE_` (5 Exercícios Concluídos):**
+  * `FNC_MAIOR_CARGA_USUARIO` chamada no `SELECT` da tabela de usuários.
+  * `FNC_STATUS_PROGRESSO_META` com `CASE WHEN` avaliando a meta.
+  * `TRE_REGISTRAR_SERIE` com saneamento via `IN OUT`, código sequencial e `SQL%ROWCOUNT`.
+  * `PRC_ATUALIZAR_RECORDES_USUARIO` modularizada consumindo a função de maior carga.
+  * `FNC_RECORDES_NA_VIGENCIA_META` usando `%ROWTYPE` e vigência temporal.
 
 ---
 
-### 🔹 DIA 5: SIMULADO GERAL DE PROVA
+### 🔹 DIA 5: SIMULADO GERAL DE PROVA & REVISÃO
+* **Status:** ⏳ Próximo
 * **Carga Horária:** ~2h00
 * **Foco:** Prova simulada com tempo cronometrado cobrindo:
   1. Criação de View complexa analítica.
@@ -98,5 +104,5 @@ Ao puxar **VIEWS** para o Dia 2, liberamos os Dias 3, 4 e 5 para praticar **Func
 | **1** | Anti-Produto Cartesiano, Subqueries no SELECT/FROM, NVL, COALESCE | ✅ Concluído |
 | **2** | Agregações (GROUP BY/HAVING), Extremos (Q2, Q4) + Início de VIEWS | ✅ Concluído |
 | **3** | DDL & DML Encapsulados em PROCEDURES com Subqueries | ✅ Concluído |
-| **4** | PL/SQL: FUNCTIONS no SELECT + PROCEDURES com IN, OUT, IN OUT | ⏳ Próximo |
-| **5** | SIMULADO COMPLETO DE PROVA (Views, Procedures, Functions e SQL) | ⬜ A fazer |
+| **4** | PL/SQL: FUNCTIONS no SELECT + PROCEDURES com IN, OUT, IN OUT | ✅ Concluído |
+| **5** | SIMULADO COMPLETO DE PROVA (Views, Procedures, Functions e SQL) | ⏳ Próximo |

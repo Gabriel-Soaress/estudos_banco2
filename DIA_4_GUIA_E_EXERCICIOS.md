@@ -377,4 +377,288 @@ Crie uma função chamada **`FNC_RECORDES_NA_VIGENCIA_META`** que receba:
 
 💡 **Dica de Raciocínio:** Busque os dados da meta em variáveis locais (`v_id_usuario, v_id_exercicio, v_dt_inicio, v_dt_fim`). Em seguida, faça um `SELECT COUNT(*) INTO v_qtd FROM TRE_RECORD WHERE ID_USUARIO = v_id_usuario AND ID_EXERCICIO = v_id_exercicio AND DATA_RECORD BETWEEN v_dt_inicio AND v_dt_fim;`. Retorne `v_qtd`.
 
+---
+
+## 🏆 PARTE 3: RESOLUÇÕES ENVIADAS PELO ALUNO
+
+```sql
+set serveroutput on;
+
+-- ========================================================
+-- EXERCÍCIO 1: FNC_MAIOR_CARGA_USUARIO
+-- ========================================================
+create or replace function FNC_MAIOR_CARGA_USUARIO(
+    p_id_usuario tre_usuario.id_usuario%type,
+    p_id_exercicio tre_exercicio.id_exercicio%type
+) return number
+is
+    v_maior_carga tre_serie.carga%type;
+begin
+    select
+        nvl(max(s.carga),0)
+    into v_maior_carga
+    from tre_serie s
+    inner join tre_item_treino it on s.id_item_treino = it.id_item_treino
+    inner join tre_treino t on it.id_treino = t.id_treino
+    where it.id_exercicio = p_id_exercicio
+          and t.id_usuario = p_id_usuario;
+          
+    return v_maior_carga;
+end;
+/
+
+-- Chamada no SELECT:
+select cod_usuario, nome, FNC_MAIOR_CARGA_USUARIO(id_usuario, 1) as carga_supino 
+from tre_usuario;
+
+-- ========================================================
+-- EXERCÍCIO 2: FNC_STATUS_PROGRESSO_META
+-- ========================================================
+create or replace function FNC_STATUS_PROGRESSO_META(
+    p_id_meta tre_meta.id_meta%type
+) return varchar2
+is  
+    v_menssagem varchar2(100);
+    v_id_usuario tre_meta.id_usuario%type;
+    v_id_exercicio tre_meta.id_exercicio%type;
+    v_carga_alvo tre_meta.carga_alvo%type;
+    v_max_record tre_record.carga_record%type;
+    v_percentual number;
+begin
+    select
+        m.id_usuario,
+        m.id_exercicio,
+        m.carga_alvo
+    into v_id_usuario, v_id_exercicio, v_carga_alvo
+    from tre_meta m
+    where m.id_meta = p_id_meta;
+    
+    select 
+        max(r.CARGA_RECORD)
+    into v_max_record
+    from tre_record r
+    where r.id_usuario = v_id_usuario and r.id_exercicio = v_id_exercicio;
+    
+    v_percentual := (v_max_record / v_carga_alvo) * 100;
+    
+    case
+        when v_percentual >= 100 then v_menssagem := 'CONCLUIDA';
+        when v_percentual >= 80 AND v_percentual < 100 then v_menssagem := 'FALTA POUCO';
+        when v_percentual < 80 then v_menssagem := 'EM PROGRESSO';
+        else v_menssagem := 'não encontrado';
+    end case;
+    
+    RETURN v_menssagem;
+end;
+/
+
+-- Chamada no SELECT:
+select 
+    cod_meta,
+    carga_alvo,
+    FNC_STATUS_PROGRESSO_META(ID_META) as SITUACAO_ATUAL
+from tre_meta;
+
+-- ========================================================
+-- EXERCÍCIO 3: TRE_REGISTRAR_SERIE (PROCEDURE)
+-- ========================================================
+create or replace procedure TRE_REGISTRAR_SERIE(
+    p_id_item_treino TRE_ITEM_TREINO.ID_ITEM_TREINO%TYPE,
+    p_num_serie TRE_SERIE.NUMERO_SERIE%TYPE,
+    p_repeticoes IN OUT TRE_SERIE.REPETICOES%TYPE,
+    p_carga IN OUT TRE_SERIE.CARGA%TYPE, 
+    p_status_gravacao OUT VARCHAR2 
+) IS
+    V_COD_SERIE TRE_SERIE.COD_SERIE%TYPE;
+    V_ULT_NUMERO NUMBER;
+BEGIN
+    -- Validação e saneamento dos dados (IN OUT):
+    IF (p_carga <= 0) THEN
+       p_carga := 1;
+    END IF;
+    
+    IF (p_repeticoes <= 0) THEN
+       p_repeticoes := 1;
+    END IF;
+    
+    SELECT NVL(MAX(TO_NUMBER(SUBSTR(COD_SERIE, 5))), 0)
+    INTO v_ULT_NUMERO
+    FROM TRE_SERIE;
+    
+    INSERT INTO TRE_SERIE
+    (ID_ITEM_TREINO, COD_SERIE, NUMERO_SERIE, REPETICOES, CARGA)
+    VALUES
+    (p_id_item_treino,
+    'SER-' || LPAD(V_ULT_NUMERO + 1, 3, '0'),
+    p_num_serie,
+    p_repeticoes,
+    p_carga
+    );
+    
+    IF SQL%ROWCOUNT = 1 THEN
+       p_status_gravacao := 'SERIE REGISTRADA COM SUCESSO!';
+    ELSE
+       p_status_gravacao := 'FALHA AO REGISTRAR';
+    END IF;
+END;
+/
+
+-- Bloco Anônimo de Teste:
+SET SERVEROUTPUT ON;
+DECLARE
+    V_MENSAGEM VARCHAR2(200);
+    V_REPETICOES TRE_SERIE.REPETICOES%TYPE := 10;
+    V_CARGA TRE_SERIE.CARGA%TYPE := 20;
+BEGIN
+    TRE_REGISTRAR_SERIE(
+        1,
+        5,
+        V_REPETICOES,
+        V_CARGA,
+        V_MENSAGEM
+    );
+
+    DBMS_OUTPUT.PUT_LINE(V_MENSAGEM);
+END;
+/
+
+-- ========================================================
+-- EXERCÍCIO 4: PRC_ATUALIZAR_RECORDES_USUARIO
+-- ========================================================
+create or replace function FNC_RECORD_ATUAL_USUARIO(
+    p_id_usuario tre_usuario.id_usuario%type,
+    p_id_exercicio tre_exercicio.id_exercicio%type
+) return number
+As
+    v_record tre_serie.carga%type;
+begin
+    select
+        nvl(max(r.carga_record), 0)
+    into v_record
+    from tre_record r
+    where r.id_exercicio = p_id_exercicio
+          and r.id_usuario = p_id_usuario;
+          
+    return v_record;
+end;
+/
+
+CREATE OR REPLACE PROCEDURE PRC_ATUALIZAR_RECORDES_USUARIO(
+    p_id_usuario TRE_USUARIO.ID_USUARIO%TYPE
+) IS     
+BEGIN
+    UPDATE TRE_RECORD r
+    SET CARGA_RECORD = FNC_MAIOR_CARGA_USUARIO(p_id_usuario, r.ID_EXERCICIO),
+        DATA_RECORD = TRUNC(SYSDATE)
+    WHERE r.ID_USUARIO = p_id_usuario
+      AND FNC_MAIOR_CARGA_USUARIO(p_id_usuario, r.ID_EXERCICIO) > r.CARGA_RECORD;
+    
+    DBMS_OUTPUT.PUT_LINE('LINHAS ALTERADAS: ' || SQL%ROWCOUNT);
+END;
+/
+
+EXEC PRC_ATUALIZAR_RECORDES_USUARIO(1);
+
+-- ========================================================
+-- EXERCÍCIO 5: FNC_RECORDES_NA_VIGENCIA_META
+-- ========================================================
+CREATE OR REPLACE FUNCTION FNC_RECORDES_NA_VIGENCIA_META(
+    p_id_meta TRE_META.ID_META%TYPE
+) RETURN NUMBER AS
+    V_META TRE_META%ROWTYPE;
+    V_QTD_RECORD NUMBER;
+BEGIN
+    SELECT *
+    INTO v_meta
+    FROM TRE_META
+    WHERE ID_META = p_id_meta;
+    
+    SELECT 
+        COUNT(R.ID_RECORD)
+    INTO V_QTD_RECORD
+    FROM TRE_RECORD R
+    WHERE R.ID_USUARIO = V_META.ID_USUARIO
+          AND R.ID_EXERCICIO = V_META.ID_EXERCICIO
+          AND R.DATA_RECORD BETWEEN V_META.DATA_CRIACAO AND NVL(V_META.DATA_CONCLUSAO, SYSDATE);
+          
+    RETURN NVL(V_QTD_RECORD, 0);
+END;
+/
+
+SELECT 
+    COD_META,
+    CARGA_ALVO,
+    STATUS,
+    FNC_RECORDES_NA_VIGENCIA_META(ID_META) AS TOTAL_RECORDES_VIGENCIA
+FROM TRE_META;
+```
+
+---
+
+## 🩺 PARTE 4: DIAGNÓSTICO DETALHADO, FEEDBACK E RESPOSTA ÀS DÚVIDAS
+
+### 🔍 1. Análise do Exercício 1 (`FNC_MAIOR_CARGA_USUARIO`)
+* **Nota: 10/10! Execução Limpa e Perfeita.**
+* Usou os tipos ancorados `%TYPE` nos parâmetros.
+* Amarrou os 3 joins (`TRE_SERIE` -> `TRE_ITEM_TREINO` -> `TRE_TREINO`) sem criar produto cartesiano.
+* Usou `NVL(MAX(s.carga), 0)`, garantindo que se o usuário nunca fez o exercício, a função retorna `0` em vez de `NULL`.
+* Chamou perfeitamente dentro do `SELECT` na tabela `TRE_USUARIO`.
+
+---
+
+### 🔍 2. Análise do Exercício 2 (`FNC_STATUS_PROGRESSO_META`)
+* **A Grande Lição do `CASE` no PL/SQL:**
+  * No SQL tradicional (`SELECT CASE WHEN ... END`), se nenhuma condição bater e não houver `ELSE`, o Oracle apenas devolve `NULL` silenciosamente.
+  * Mas no **PL/SQL** (`CASE ... END CASE;`), se nenhum `WHEN` bater e não houver `ELSE`, o Oracle estoura um erro fatal em tempo de execução:  
+    `ORA-06592: CASE not found while executing CASE statement`.
+  * Você percebeu isso e adicionou o `ELSE v_menssagem := 'não encontrado'`, o que salvou sua função!
+* **Dica de Tamanho:** No cabeçalho da Function, o tipo de retorno **nunca** tem tamanho (`RETURN VARCHAR2`). Mas na variável local interna, o tamanho é **obrigatório** (`v_menssagem VARCHAR2(100)`). Você fez exatamente certo!
+
+---
+
+### 🔍 3. Análise do Exercício 3 (`TRE_REGISTRAR_SERIE`)
+* **Nota: 10/10! Procedimento Robusto de Nível Empresarial.**
+* Sanitizou os parâmetros `IN OUT` perfeitamente (`p_carga := 1`, `p_repeticoes := 1`).
+* Gerou o código `COD_SERIE` mantendo a sequência oficial (`SER-001`, `SER-002`) com `LPAD(V_ULT_NUMERO + 1, 3, '0')`.
+* Usou `SQL%ROWCOUNT` de forma limpa para confirmar o sucesso da inserção.
+* O bloco de teste declarou as variáveis em memória antes de chamar a procedure, respeitando rigorosamente a regra do modo `OUT`.
+
+---
+
+### 💡 4. A Grande Dúvida do Exercício 4: Como o Oracle passa o `r.ID_EXERCICIO` e por que a mensagem sumiu?
+
+> **Sua Dúvida:** *"Honestamente, nesse aqui me perdi todo, não sabia que o Oracle pegaria o `r.ID_EXERCICIO` sozinho e além disso a mensagem não saiu."*
+
+Essa é uma das coisas mais elegantes do SQL e vale ouro entender como ele pensa:
+
+#### 🏭 A Analogia da Esteira Rolante de Fábrica:
+Quando você executa:
+```sql
+UPDATE TRE_RECORD r
+SET CARGA_RECORD = FNC_MAIOR_CARGA_USUARIO(p_id_usuario, r.ID_EXERCICIO),
+    DATA_RECORD = TRUNC(SYSDATE)
+WHERE r.ID_USUARIO = p_id_usuario
+  AND FNC_MAIOR_CARGA_USUARIO(p_id_usuario, r.ID_EXERCICIO) > r.CARGA_RECORD;
+```
+Pense na tabela `TRE_RECORD` como uma **esteira rolante**.
+1. O Oracle liga a esteira e puxa apenas os produtos daquele aluno (`r.ID_USUARIO = p_id_usuario`).
+2. Passa a primeira caixinha na esteira: é o recorde de Supino (`r.ID_EXERCICIO = 1`).  
+   O Oracle lê o código `1` da caixinha e passa para a sua função: `FNC_MAIOR_CARGA_USUARIO(1, 1)`. Se a carga for maior, ele carimba a nova carga.
+3. Passa a segunda caixinha: é o recorde de Agachamento (`r.ID_EXERCICIO = 2`).  
+   O Oracle lê o código `2` da caixinha e passa para a sua função: `FNC_MAIOR_CARGA_USUARIO(1, 2)`.
+4. Você **não precisa fazer loop** (`WHILE` ou `FOR`) porque o SQL é uma linguagem orientada a conjuntos. Para cada linha que ele visita, o apelido `r.` representa os valores daquela linha específica!
+
+#### 🔇 Por que a mensagem do `DBMS_OUTPUT` não saiu no seu terminal?
+Dois motivos clássicos:
+1. **O `SERVEROUTPUT` estava desligado na aba:** Toda vez que você abre uma nova aba no SQL Developer, o buffer vem mudo por padrão. É preciso rodar `SET SERVEROUTPUT ON;` ou ativar o botão verde de saída do DBMS.
+2. **Nenhuma linha foi alterada (`SQL%ROWCOUNT = 0`):** Se as cargas que o usuário 1 levantou nos treinos atuais forem menores ou iguais às cargas que já estavam registradas em `TRE_RECORD`, o filtro `> r.CARGA_RECORD` descarta todas as linhas. O `UPDATE` não altera ninguém!
+
+---
+
+### 🔍 5. Análise do Exercício 5 (`FNC_RECORDES_NA_VIGENCIA_META`)
+* **Nota: 10/10! Brilhante.**
+* Usou `%ROWTYPE` (`V_META TRE_META%ROWTYPE`), mostrando domínio total da maleta completa de ferramentas.
+* A amarração `BETWEEN V_META.DATA_CRIACAO AND NVL(V_META.DATA_CONCLUSAO, SYSDATE)` fez o cruzamento temporal perfeito entre o ciclo de vida da meta e os recordes batidos.
+
+
 
