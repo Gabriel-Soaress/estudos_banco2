@@ -340,7 +340,8 @@ Crie uma procedure chamada **`PRC_ATUALIZAR_RECORDES_USUARIO`** que receba:
 * Usar `SQL%ROWCOUNT` e `DBMS_OUTPUT.PUT_LINE`.
 * Sem bloco `EXCEPTION`.
 
-💡 **Dica de Raciocínio:** O comando fica extremamente limpo: `UPDATE TRE_RECORD r SET r.CARGA_RECORD = FNC_MAIOR_CARGA_USUARIO(p_id_usuario, r.ID_EXERCICIO), r.DATA_RECORD = TRUNC(SYSDATE) WHERE r.ID_USUARIO = p_id_usuario AND FNC_MAIOR_CARGA_USUARIO(p_id_usuario, r.ID_EXERCICIO) > r.CARGA_RECORD;`. Em seguida, exiba o `SQL%ROWCOUNT`.
+💡 **Dica de Raciocínio:** O comando fica extremamente limpo (lembre-se que no Oracle o lado esquerdo do `SET` nunca leva o alias `r.`):  
+`UPDATE TRE_RECORD r SET CARGA_RECORD = FNC_MAIOR_CARGA_USUARIO(p_id_usuario, r.ID_EXERCICIO), DATA_RECORD = TRUNC(SYSDATE) WHERE r.ID_USUARIO = p_id_usuario AND FNC_MAIOR_CARGA_USUARIO(p_id_usuario, r.ID_EXERCICIO) > r.CARGA_RECORD;`. Em seguida, exiba o `SQL%ROWCOUNT`.
 
 ---
 
