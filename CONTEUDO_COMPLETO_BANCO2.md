@@ -913,3 +913,105 @@ Essa é a mágica do SQL orientado a conjuntos:
    Agora `r.ID_EXERCICIO` vale `4`. O Oracle chama `FNC_MAIOR_CARGA_USUARIO(1, 4)` automaticamente!
 4. Você **não precisa criar loop** e não precisa passar o ID do exercício na chamada da Procedure se quiser atualizar todos os exercícios daquele usuário de uma só vez: a própria linha `r` da tabela fornece o `r.ID_EXERCICIO` para a Function!
 *(E se a questão pedir para atualizar apenas 1 exercício específico por vez, basta colocar `p_id_exercicio IN NUMBER` nos parâmetros da Procedure e adicionar `AND r.ID_EXERCICIO = p_id_exercicio` no `WHERE`).*
+
+---
+
+### 🧩 O Padrão Clássico da Atividade em Grupo: Procedure V1 (Com `JOIN` Manual) $\rightarrow$ Function $\rightarrow$ Procedure V2 (Com Function no `FROM`)
+
+Veja a evolução exata cobrada em sala de aula para encontrar o treino que possui a maior quantidade de séries:
+
+```sql
+-- ============================================================================
+-- PASSO 1: PROCEDURE V1 (Fazendo o JOIN e GROUP BY manualmente duas vezes)
+-- ============================================================================
+CREATE OR REPLACE PROCEDURE TREINO_MAX_SERIE IS
+    v_qtd_maior INTEGER;
+    v_id_treino INTEGER;
+BEGIN
+    -- 1º SELECT INTO: Descobre qual é o maior número de séries em um treino
+    SELECT MAX(QTD_SERIE)
+    INTO v_qtd_maior
+    FROM (
+        SELECT 
+            t.ID_TREINO,
+            COUNT(s.ID_SERIE) AS QTD_SERIE 
+        FROM TRE_TREINO t
+        INNER JOIN TRE_ITEM_TREINO it ON it.ID_TREINO = t.ID_TREINO
+        INNER JOIN TRE_SERIE s ON it.ID_ITEM_TREINO = s.ID_ITEM_TREINO
+        GROUP BY t.ID_TREINO
+    );
+
+    -- 2º SELECT INTO: Descobre o ID do treino dono dessa maior quantidade
+    -- (Usa MIN(ID_TREINO) para blindar a cadeira única contra empates!)
+    SELECT MIN(ID_TREINO)
+    INTO v_id_treino
+    FROM (
+        SELECT 
+            t.ID_TREINO,
+            COUNT(s.ID_SERIE) AS QTD_SERIE
+        FROM TRE_TREINO t
+        INNER JOIN TRE_ITEM_TREINO it ON it.ID_TREINO = t.ID_TREINO
+        INNER JOIN TRE_SERIE s ON it.ID_ITEM_TREINO = s.ID_ITEM_TREINO
+        GROUP BY t.ID_TREINO
+    )
+    WHERE QTD_SERIE = v_qtd_maior;
+
+    DBMS_OUTPUT.PUT_LINE('ID do treino: ' || v_id_treino || ' | Maior qtd de séries: ' || v_qtd_maior);
+END;
+/
+
+-- ============================================================================
+-- PASSO 2: CRIANDO A FUNCTION QUE ISOLA A CONTAGEM DE SÉRIES DE UM TREINO
+-- ============================================================================
+CREATE OR REPLACE FUNCTION COUNT_SERIES_TREINO (
+    p_cod_treino VARCHAR2
+) RETURN INTEGER IS
+    v_id_treino    INTEGER;
+    v_qtd_serie_id INTEGER;
+BEGIN
+    -- Traduz o COD_TREINO recebido para o ID_TREINO numérico
+    SELECT ID_TREINO INTO v_id_treino
+    FROM TRE_TREINO
+    WHERE COD_TREINO = p_cod_treino;
+
+    -- Conta as séries daquele treino específico
+    SELECT COUNT(s.ID_SERIE)
+    INTO v_qtd_serie_id
+    FROM TRE_SERIE s
+    INNER JOIN TRE_ITEM_TREINO it ON it.ID_ITEM_TREINO = s.ID_ITEM_TREINO
+    WHERE it.ID_TREINO = v_id_treino;
+
+    RETURN v_qtd_serie_id;
+END;
+/
+
+-- ============================================================================
+-- PASSO 3: PROCEDURE V2 (Substituindo os JOINs e GROUP BY pela Function!)
+-- ============================================================================
+CREATE OR REPLACE PROCEDURE TREINO_MAX_SERIE2 IS
+    v_qtd_maior INTEGER;
+    v_id_treino INTEGER;
+BEGIN
+    -- Olhe como a subquery do FROM ficou 10x menor usando a Function:
+    SELECT MAX(QTD_SERIE)
+    INTO v_qtd_maior
+    FROM (
+        SELECT COUNT_SERIES_TREINO(COD_TREINO) AS QTD_SERIE
+        FROM TRE_TREINO
+    );
+
+    SELECT MIN(ID_TREINO)
+    INTO v_id_treino
+    FROM (
+        SELECT 
+            ID_TREINO,
+            COUNT_SERIES_TREINO(COD_TREINO) AS QTD_SERIE
+        FROM TRE_TREINO
+    )
+    WHERE QTD_SERIE = v_qtd_maior;
+
+    DBMS_OUTPUT.PUT_LINE('ID do treino: ' || v_id_treino || ' | Maior qtd de séries: ' || v_qtd_maior);
+END;
+/
+```
+
