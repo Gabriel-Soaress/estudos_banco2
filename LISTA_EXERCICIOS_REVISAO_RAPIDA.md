@@ -5,6 +5,8 @@
 
 ---
 
+## 📝 PARTE 1: ENUNCIADOS DOS EXERCÍCIOS DE REVISÃO RÁPIDA
+
 ### 🎯 EXERCÍCIO 1 (Subqueries no `SELECT` com `DUAL`)
 Crie um `SELECT` que retorne, em uma única linha, duas colunas:
 * `QTD_METAS_ATIVAS`: quantidade total de metas com status `'ATIVA'`.
@@ -95,3 +97,361 @@ Crie uma function chamada **`FNC_DIAS_PRAZO_META`** que receba `p_id_meta IN NUM
 1. **Passo A (`PRC_USUARIO_MAIS_TREINOS_V1`):** Crie uma procedure (sem parâmetros) que descubra qual é a maior quantidade de treinos realizados por um único usuário (usando subquery no `FROM` com `GROUP BY`), depois busque o `MIN(ID_USUARIO)` que atingiu essa quantidade máxima (para blindar contra empates) e imprima no `DBMS_OUTPUT` o `ID_USUARIO` e a quantidade máxima.
 2. **Passo B (`FNC_CONTAR_TREINOS_USR`):** Crie uma function que receba `p_cod_usuario IN VARCHAR2`, busque o `ID_USUARIO` correspondente, conte e retorne (`RETURN NUMBER`) quantos treinos aquele usuário possui.
 3. **Passo C (`PRC_USUARIO_MAIS_TREINOS_V2`):** Crie a versão 2 da procedure do Passo A substituindo os joins e `GROUP BY` internos pela chamada direta da function `FNC_CONTAR_TREINOS_USR(COD_USUARIO)` dentro da subquery do `FROM`.
+
+---
+---
+
+## 🏆 PARTE 2: SUAS RESOLUÇÕES ENVIADAS (LISTA RÁPIDA + `ATV_GRUPO.sql`)
+
+### 2.1 Resoluções que você enviou na Revisão Rápida:
+
+```sql
+-- ========================================================
+-- EX 1: Subquery no SELECT (Contagem de Treinos por Usuário)
+-- ========================================================
+SELECT 
+    U.NOME,
+    (SELECT COUNT(*) FROM TRE_TREINO T WHERE T.ID_USUARIO = U.ID_USUARIO) AS TOTAL_TREINOS
+FROM TRE_USUARIO U;
+
+
+-- ========================================================
+-- EX 2: Subquery no FROM (Maior Duração de Treino por Usuário)
+-- ========================================================
+-- Sua versão 1 (com Subquery no LEFT JOIN):
+SELECT
+    U.NOME,
+    NVL(RESUMO.MAIOR_DURACAO,0)
+FROM TRE_USUARIO U
+LEFT JOIN(
+    SELECT
+        U.NOME,
+        MAX(T.DURACAO_MINUTO) AS MAIOR_DURACAO
+    FROM TRE_USUARIO U
+    INNER JOIN TRE_TREINO T ON T.ID_USUARIO = U.ID_USUARIO
+    GROUP BY U.NOME
+)RESUMO ON U.NOME = RESUMO.NOME;
+
+-- 💡 Ajuste Fino de Prova para a Versão 1 (Ligar sempre pelo ID_USUARIO e sem precisar de JOIN interno):
+SELECT
+    U.NOME,
+    NVL(RESUMO.MAIOR_DURACAO, 0) AS MAIOR_DURACAO
+FROM TRE_USUARIO U
+LEFT JOIN (
+    SELECT
+        ID_USUARIO,
+        MAX(DURACAO_MINUTO) AS MAIOR_DURACAO
+    FROM TRE_TREINO
+    GROUP BY ID_USUARIO
+) RESUMO ON U.ID_USUARIO = RESUMO.ID_USUARIO;
+
+-- Sua versão 2 (Com Subquery Escalar no SELECT):
+SELECT 
+    U.NOME,
+    NVL((SELECT MAX(DURACAO_MINUTO) FROM TRE_TREINO T WHERE T.ID_USUARIO = U.ID_USUARIO), 0) AS MAIOR_DURACAO
+FROM TRE_USUARIO U;
+
+
+-- ========================================================
+-- EX 3: GROUP BY + HAVING + ROUND (Média de Repetições > 10)
+-- ========================================================
+SELECT
+    IT.ID_EXERCICIO,
+    ROUND(AVG(S.REPETICOES),2) AS MEDIA_REP
+FROM TRE_ITEM_TREINO IT
+INNER JOIN TRE_SERIE S ON IT.ID_ITEM_TREINO = S.ID_ITEM_TREINO
+GROUP BY IT.ID_EXERCICIO
+HAVING ROUND(AVG(S.REPETICOES),2) > 10;
+
+
+-- ========================================================
+-- EX 4: Dono do Maior Valor com Subquery no WHERE
+-- ========================================================
+SELECT
+    U.NOME,
+    T.COD_TREINO,
+    T.DURACAO_MINUTO
+FROM TRE_USUARIO U
+INNER JOIN TRE_TREINO T ON T.ID_USUARIO = U.ID_USUARIO
+WHERE T.DURACAO_MINUTO = (SELECT MAX(DURACAO_MINUTO) FROM TRE_TREINO);
+
+
+-- ========================================================
+-- EX 5: VIEW de Resumo de Metas Ativas (Com Subquery no SELECT!)
+-- ========================================================
+-- ✅ Solução Nota 10 (Mais limpa e imune à armadilha do WHERE no LEFT JOIN):
+CREATE OR REPLACE VIEW VW_RESUMO_METAS_USUARIOS AS
+    SELECT
+        U.COD_USUARIO,
+        U.NOME,
+        (SELECT COUNT(M.ID_META) 
+         FROM TRE_META M 
+         WHERE M.ID_USUARIO = U.ID_USUARIO 
+           AND M.STATUS = 'ATIVA') AS QTD_META_ATIVA
+    FROM TRE_USUARIO U;
+
+
+-- ========================================================
+-- EX 9: DELETE Seguro com NOT IN e Proteção IS NOT NULL
+-- ========================================================
+DELETE FROM TRE_EXERCICIO 
+WHERE ID_EXERCICIO NOT IN (
+    SELECT 
+        IT.ID_EXERCICIO
+    FROM TRE_ITEM_TREINO IT
+    WHERE ID_EXERCICIO IS NOT NULL
+);
+```
+
+---
+
+### 2.2 Suas Resoluções da Atividade em Grupo (`ATV_GRUPO.sql`):
+
+```sql
+-- ========================================================
+-- CRUD EM PL/SQL: TRE_USUARIO
+-- ========================================================
+create or replace procedure ADD_TRE_USUARIO(
+    P_COD TRE_USUARIO.COD_USUARIO%TYPE,
+    P_NOME TRE_USUARIO.NOME%TYPE,
+    P_EMAIL TRE_USUARIO.EMAIL%TYPE,
+    P_SENHA TRE_USUARIO.SENHA%TYPE
+)IS
+BEGIN
+    INSERT INTO TRE_USUARIO
+    (COD_USUARIO,NOME,EMAIL,SENHA)
+    VALUES
+    (P_COD,P_NOME,P_EMAIL,P_SENHA);
+
+    DBMS_OUTPUT.PUT_LINE('Aluno '|| P_COD || ' inserido com sucesso');
+END;
+/
+
+create or replace procedure UPDATE_TRE_USUARIO(
+    -- IDENTIFICADOR:
+    P_COD TRE_USUARIO.COD_USUARIO%TYPE,
+    -- COLUNAS QUE ALTERAM:
+    P_NEW_NOME TRE_USUARIO.NOME%TYPE,
+    P_NEW_EMAIL TRE_USUARIO.EMAIL%TYPE,
+    P_NEW_SENHA TRE_USUARIO.SENHA%TYPE
+)IS
+BEGIN
+    UPDATE TRE_USUARIO
+    SET NOME = P_NEW_NOME, EMAIL = P_NEW_EMAIL, SENHA = P_NEW_SENHA
+    WHERE COD_USUARIO = P_COD;
+
+    DBMS_OUTPUT.PUT_LINE('Aluno '|| P_COD || ' ATUALIZADO com sucesso');
+END;
+/
+
+create or replace procedure DELETE_TRE_USUARIO(
+    P_COD TRE_USUARIO.COD_USUARIO%TYPE
+)IS
+BEGIN
+    DELETE FROM TRE_USUARIO
+    WHERE COD_USUARIO = P_COD;
+
+    DBMS_OUTPUT.PUT_LINE('Aluno '|| P_COD || ' DELETADO com sucesso');
+END;
+/
+
+-- ========================================================
+-- CRUD EM PL/SQL: TRE_GRUPOMUSCULAR
+-- ========================================================
+create or replace PROCEDURE TRE_ADD_GRPMUSCULAR(
+    P_COD TRE_GRUPOMUSCULAR.COD_GRP_MUSCULAR%TYPE,
+    P_NOME TRE_GRUPOMUSCULAR.NOME%TYPE
+) IS
+BEGIN
+    INSERT INTO tre_grupomuscular
+    (COD_GRP_MUSCULAR,NOME)
+    VALUES(P_COD,P_NOME);
+END;
+/
+
+create or replace PROCEDURE TRE_UPD_GRPMUSCULAR(
+    P_COD TRE_GRUPOMUSCULAR.COD_GRP_MUSCULAR%TYPE,
+    P__NOVO_NOME TRE_GRUPOMUSCULAR.NOME%TYPE
+)IS
+BEGIN
+    UPDATE TRE_GRUPOMUSCULAR
+    SET NOME = P__NOVO_NOME
+    WHERE COD_GRP_MUSCULAR = P_COD;   
+END;
+/
+
+create or replace PROCEDURE TRE_DEL_TRE_GRUPOMUSCULAR(
+    P_COD TRE_GRUPOMUSCULAR.COD_GRP_MUSCULAR%TYPE
+) IS
+    V_ID INTEGER;
+BEGIN
+    SELECT ID_GRP_MUSCULAR
+    INTO V_ID
+    FROM TRE_GRUPOMUSCULAR
+    WHERE COD_GRP_MUSCULAR = P_COD;
+
+    DELETE FROM TRE_GRUPOMUSCULAR
+    WHERE ID_GRP_MUSCULAR = V_ID;
+END;
+/
+
+-- ========================================================
+-- CRUD EM PL/SQL: TRE_EXERCICIO (Conversão COD -> ID e Global vs Pessoal)
+-- ========================================================
+create or replace PROCEDURE TRE_ADD_EXERCICIO(
+    P_COD_USR TRE_USUARIO.COD_USUARIO%TYPE,
+    P_COD_GRP TRE_GRUPOMUSCULAR.COD_GRP_MUSCULAR%TYPE,
+    P_COD_EX  TRE_EXERCICIO.COD_EXERCICIO%TYPE,
+    P_NOME    TRE_EXERCICIO.NOME%TYPE,
+    P_DESC    TRE_EXERCICIO.DESCRICAO%TYPE
+)IS
+    V_ID_USER TRE_USUARIO.id_usuario%type := NULL;
+    V_ID_GRP  TRE_GRUPOMUSCULAR.ID_GRP_MUSCULAR%TYPE;
+BEGIN
+    -- O COD PODE SER NULL, QUANDO O EXERCICIO É GLOBAL!
+    IF P_COD_USR IS NOT NULL THEN 
+        SELECT U.ID_USUARIO
+        INTO V_ID_USER
+        FROM TRE_USUARIO U
+        WHERE U.COD_USUARIO = P_COD_USR;
+    END IF;
+
+    SELECT GRP.ID_GRP_MUSCULAR
+    INTO V_ID_GRP 
+    FROM TRE_GRUPOMUSCULAR GRP 
+    WHERE GRP.COD_GRP_MUSCULAR = P_COD_GRP;
+
+    INSERT INTO TRE_EXERCICIO
+    (ID_USUARIO,ID_GRP_MUSCULAR,COD_EXERCICIO,NOME,DESCRICAO)
+    VALUES 
+    (V_ID_USER,V_ID_GRP,P_COD_EX,P_NOME,P_DESC);
+END;
+/
+
+create or replace PROCEDURE TRE_UPD_EXERCICIO(
+    P_COD_EX  TRE_EXERCICIO.COD_EXERCICIO%TYPE,
+    P_COD_USR TRE_USUARIO.COD_USUARIO%TYPE,
+    P_COD_GRP TRE_GRUPOMUSCULAR.COD_GRP_MUSCULAR%TYPE,
+    P_NOME    TRE_EXERCICIO.NOME%TYPE,
+    P_DESC    TRE_EXERCICIO.DESCRICAO%TYPE
+)IS
+    V_ID_USER TRE_USUARIO.id_usuario%type := NULL;
+    V_ID_GRP  TRE_GRUPOMUSCULAR.ID_GRP_MUSCULAR%TYPE;
+BEGIN
+    IF P_COD_USR IS NOT NULL THEN 
+        SELECT U.ID_USUARIO
+        INTO V_ID_USER
+        FROM TRE_USUARIO U
+        WHERE U.COD_USUARIO = P_COD_USR;
+    END IF;
+
+    SELECT GRP.ID_GRP_MUSCULAR
+    INTO V_ID_GRP 
+    FROM TRE_GRUPOMUSCULAR GRP 
+    WHERE GRP.COD_GRP_MUSCULAR = P_COD_GRP;
+
+    UPDATE TRE_EXERCICIO
+    SET ID_USUARIO = V_ID_USER, ID_GRP_MUSCULAR = V_ID_GRP, NOME = P_NOME, DESCRICAO = P_DESC
+    WHERE COD_EXERCICIO = P_COD_EX;
+END;
+/
+
+create or replace PROCEDURE TRE_DEL_EXERCICIO(
+    P_COD_EX TRE_EXERCICIO.COD_EXERCICIO%TYPE
+)IS
+BEGIN
+    DELETE FROM tre_exercicio
+    WHERE COD_EXERCICIO = P_COD_EX;
+END;
+/
+
+-- ========================================================
+-- PADRÃO AVANÇADO: PROCEDURE V1 -> FUNCTION -> PROCEDURE V2
+-- ========================================================
+
+-- 1. PROCEDURE V1 (Com Subquery no FROM + GROUP BY + Desempate com MIN):
+create or replace PROCEDURE TREINO_MAX_SERIE IS
+    V_QTD_MAIOR INTEGER;
+    V_ID_TREINO INTEGER;
+BEGIN
+    SELECT MAX(QTD_SERIE)
+    INTO V_QTD_MAIOR
+    FROM(
+        SELECT 
+            T.ID_TREINO,
+            COUNT(S.ID_SERIE) AS QTD_SERIE 
+        FROM TRE_TREINO T
+        INNER JOIN TRE_ITEM_TREINO IT ON IT.ID_TREINO = T.ID_TREINO
+        INNER JOIN TRE_SERIE S ON IT.ID_ITEM_TREINO = S.ID_ITEM_TREINO
+        GROUP BY T.ID_TREINO
+    );
+
+    SELECT MIN(id_treino)
+    INTO V_ID_TREINO
+    FROM (
+        SELECT 
+            T.ID_TREINO,
+            COUNT(S.ID_SERIE) AS QTD_SERIE
+        FROM TRE_TREINO T
+        INNER JOIN TRE_ITEM_TREINO IT ON IT.ID_TREINO = T.ID_TREINO
+        INNER JOIN TRE_SERIE S ON IT.ID_ITEM_TREINO = S.ID_ITEM_TREINO
+        GROUP BY T.ID_TREINO
+    )
+    WHERE QTD_SERIE = V_QTD_MAIOR;
+
+    DBMS_OUTPUT.PUT_LINE(
+        ' | ID do treino: ' || V_ID_TREINO ||
+        ' Maior quantidade de séries: ' || V_QTD_MAIOR
+    );
+END;
+/
+
+-- 2. FUNCTION DE CONTAGEM DE SÉRIES POR CÓDIGO DE TREINO:
+create or replace FUNCTION COUNT_SERIES_TREINO(P_COD_TREINO VARCHAR2) RETURN INTEGER IS
+    V_ID_TREINO INTEGER;
+    V_QTD_SERIE_ID INTEGER;
+BEGIN
+    SELECT ID_TREINO INTO V_ID_TREINO
+    FROM TRE_TREINO
+    WHERE COD_TREINO = P_COD_TREINO;
+
+    SELECT COUNT(S.ID_SERIE)
+    INTO V_QTD_SERIE_ID
+    FROM TRE_SERIE S
+    INNER JOIN TRE_ITEM_TREINO IT ON IT.ID_ITEM_TREINO = S.ID_ITEM_TREINO
+    WHERE IT.ID_TREINO = V_ID_TREINO;
+
+    RETURN V_QTD_SERIE_ID;
+END;
+/
+
+-- 3. PROCEDURE V2 REUTILIZANDO A FUNCTION NA SUBQUERY DO FROM:
+create or replace PROCEDURE TREINO_MAX_SERIE2 IS
+    V_QTD_MAIOR INTEGER;
+    V_ID_TREINO INTEGER;
+BEGIN
+    SELECT MAX(QTD_SERIE)
+    INTO V_QTD_MAIOR
+    FROM(
+        SELECT
+            COUNT_SERIES_TREINO(COD_TREINO) AS QTD_SERIE
+        FROM TRE_TREINO
+    );
+
+    SELECT MIN(ID_TREINO)
+    INTO V_ID_TREINO
+    FROM(
+        SELECT
+            ID_TREINO,
+            COUNT_SERIES_TREINO(COD_TREINO) AS QTD_SERIE
+        FROM TRE_TREINO
+    )
+    WHERE QTD_SERIE = V_QTD_MAIOR;
+
+    DBMS_OUTPUT.PUT_LINE(
+        ' | ID do treino: ' || V_ID_TREINO ||
+        ' Maior quantidade de séries: ' || V_QTD_MAIOR
+    );
+END;
+/
+```
