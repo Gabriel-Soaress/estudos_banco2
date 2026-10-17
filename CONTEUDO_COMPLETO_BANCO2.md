@@ -246,6 +246,26 @@ Ambos servem para filtrar, mas agem em momentos cronológicos opostos dentro do 
 
 * **Erro Clássico de Prova (`ORA-00934`):** Escrever `WHERE AVG(s.CARGA) > 80` ou `WHERE COUNT(t.ID_TREINO) > 1`. No instante em que o `WHERE` está rodando, as caixas ainda nem foram montadas e a média ainda não existe! Filtros sobre `COUNT`, `AVG`, `SUM`, `MAX` e `MIN` moram **obrigatoriamente no `HAVING`**.
 
+### 💻 Exemplo Completo Comentado (`WHERE` + `GROUP BY` + `HAVING` juntos):
+```sql
+SELECT
+    u.ID_USUARIO,                         -- Está na etiqueta da caixa (GROUP BY)
+    u.NOME AS NOME_USUARIO,               -- Está na etiqueta da caixa (GROUP BY)
+    COUNT(t.ID_TREINO) AS QTD_TREINOS,    -- Medição da caixa fechada (contagem)
+    ROUND(AVG(t.DURACAO_MINUTO), 2) AS MEDIA_TEMPO, -- Medição da caixa (média arredondada)
+    MAX(t.DURACAO_MINUTO) AS MAIOR_TREINO -- Medição da caixa (maior valor)
+FROM TRE_USUARIO u
+INNER JOIN TRE_TREINO t ON t.ID_USUARIO = u.ID_USUARIO
+-- 1. PENEIRA GROSSA (WHERE): Filtra linha por linha ANTES de entrar na caixa
+-- Exemplo: considerar apenas treinos que duraram pelo menos 20 minutos
+WHERE t.DURACAO_MINUTO >= 20
+-- 2. EMPACOTADOR (GROUP BY): Cria uma caixa lacrada para cada usuário
+GROUP BY u.ID_USUARIO, u.NOME
+-- 3. CONTROLE DE QUALIDADE (HAVING): Olha para a caixa JÁ LACRADA e só deixa passar
+-- os usuários que acumularam mais de 1 treino dentro da caixa!
+HAVING COUNT(t.ID_TREINO) > 1;
+```
+
 ---
 
 ## 2.3 Como Pescar o "Dono" do Maior ou Menor Valor (`MAX` e `MIN` com Subqueries)
@@ -276,9 +296,55 @@ WHERE r.CARGA_RECORD = (
 
 ### E quando a prova pede o Maior E o Menor de cada Categoria (Grupo Muscular) ao mesmo tempo?
 Quando você precisa mostrar na mesma linha o **Grupo Muscular**, o **Maior Recorde + Nome do Exercício** e o **Menor Recorde + Nome do Exercício** (sem poder usar `WITH` nem `UNION`):
-1. Você cria uma **Subquery no `FROM`** (`max_min_grp`) que agrupa por `ID_GRP_MUSCULAR` e calcula `MAX(CARGA_RECORD)` e `MIN(CARGA_RECORD)`.
-2. Você faz `INNER JOIN` com uma subquery para descobrir o exercício dono do `MAX` (amarrando pelo `ID_GRP_MUSCULAR` e pela carga igual ao `maior_record`).
-3. Você faz outro `INNER JOIN` com uma subquery para descobrir o exercício dono do `MIN` (amarrando pelo `ID_GRP_MUSCULAR` e pela carga igual ao `menor_record`).
+1. Você cria uma **Subquery no `FROM`** (`max_min_grp_rec`) que agrupa por `ID_GRP_MUSCULAR` e calcula `MAX(CARGA_RECORD)` e `MIN(CARGA_RECORD)`.
+2. Você faz `INNER JOIN` com uma subquery (`ex_maior_rec`) para descobrir o exercício dono do `MAX` (amarrando pelo `ID_GRP_MUSCULAR` e pela carga igual ao `maior_record`).
+3. Você faz outro `INNER JOIN` com uma subquery (`ex_menor_rec`) para descobrir o exercício dono do `MIN` (amarrando pelo `ID_GRP_MUSCULAR` e pela carga igual ao `menor_record`).
+
+#### 💻 Exemplo Completo Comentado (Maior e Menor Recorde por Grupo Muscular + Seus Donos):
+```sql
+SELECT
+    max_min_grp_rec.NOME AS GRUPO_MUSCULAR,
+    ex_maior_rec.EXERCICIO AS EXERCICIO_MAIOR_RECORDE,
+    max_min_grp_rec.MAIOR_RECORD,
+    ex_menor_rec.EXERCICIO AS EXERCICIO_MENOR_RECORDE,
+    max_min_grp_rec.MENOR_RECORD
+FROM (
+    -- 1. POST-IT CENTRAL: Descobre o valor numérico do MAIOR e do MENOR recorde de cada grupo muscular
+    SELECT
+        grp.NOME,
+        e.ID_GRP_MUSCULAR,                 -- Crachá obrigatório para ligar lá fora!
+        MAX(r.CARGA_RECORD) AS MAIOR_RECORD,
+        MIN(r.CARGA_RECORD) AS MENOR_RECORD
+    FROM TRE_RECORD r
+    INNER JOIN TRE_EXERCICIO e ON r.ID_EXERCICIO = e.ID_EXERCICIO
+    INNER JOIN TRE_GRUPOMUSCULAR grp ON grp.ID_GRP_MUSCULAR = e.ID_GRP_MUSCULAR
+    GROUP BY grp.NOME, e.ID_GRP_MUSCULAR
+) max_min_grp_rec
+
+-- 2. POST-IT DO CAMPEÃO (MAIOR): Busca o nome do exercício que bateu exatamente o MAIOR_RECORD daquele grupo
+INNER JOIN (
+    SELECT
+        e.NOME AS EXERCICIO, 
+        e.ID_GRP_MUSCULAR,                 -- Crachá do grupo
+        r.CARGA_RECORD AS MAIOR_REC        -- Valor da carga para comparar com o MAX
+    FROM TRE_EXERCICIO e
+    INNER JOIN TRE_RECORD r ON r.ID_EXERCICIO = e.ID_EXERCICIO
+) ex_maior_rec 
+    ON ex_maior_rec.MAIOR_REC = max_min_grp_rec.MAIOR_RECORD
+   AND ex_maior_rec.ID_GRP_MUSCULAR = max_min_grp_rec.ID_GRP_MUSCULAR
+
+-- 3. POST-IT DO LANTERNA (MENOR): Busca o nome do exercício que teve exatamente o MENOR_RECORD daquele grupo
+INNER JOIN (
+    SELECT
+        e.NOME AS EXERCICIO,
+        e.ID_GRP_MUSCULAR,                 -- Crachá do grupo
+        r.CARGA_RECORD AS MENOR_REC        -- Valor da carga para comparar com o MIN
+    FROM TRE_EXERCICIO e
+    INNER JOIN TRE_RECORD r ON r.ID_EXERCICIO = e.ID_EXERCICIO
+) ex_menor_rec 
+    ON ex_menor_rec.MENOR_REC = max_min_grp_rec.MENOR_RECORD
+   AND ex_menor_rec.ID_GRP_MUSCULAR = max_min_grp_rec.ID_GRP_MUSCULAR;
+```
 
 ---
 
@@ -708,12 +774,68 @@ Um recorde pertence àquela meta se:
 3. Tiver sido batido **dentro da janela de datas da meta**:  
    **`r.DATA_RECORD BETWEEN m.DATA_CRIACAO AND NVL(m.DATA_CONCLUSAO, SYSDATE)`**
 
+#### 💻 Exemplo em Código Comentado (`VIEW` / `SELECT` de Metas x Recordes na Vigência):
+```sql
+CREATE OR REPLACE VIEW VW_METAS_E_RECORDES_VIGENCIA AS
+SELECT 
+    m.COD_META,
+    u.NOME AS USUARIO,
+    e.NOME AS EXERCICIO,
+    m.CARGA_ALVO,
+    m.STATUS,
+    -- Conta quantos recordes foram batidos dentro da validade dessa meta
+    COUNT(r.ID_RECORD) AS QTD_RECORDES_NA_META,
+    -- Pega o maior recorde atingido durante a vigência dessa meta (ou 0 se não bateu nenhum)
+    NVL(MAX(r.CARGA_RECORD), 0) AS MAIOR_RECORD_NA_VIGENCIA
+FROM TRE_META m
+INNER JOIN TRE_USUARIO u ON u.ID_USUARIO = m.ID_USUARIO
+INNER JOIN TRE_EXERCICIO e ON e.ID_EXERCICIO = m.ID_EXERCICIO
+-- LEFT JOIN para não sumir com as metas que ainda possuem 0 recordes batidos!
+LEFT JOIN TRE_RECORD r 
+    ON r.ID_USUARIO = m.ID_USUARIO                                              -- 1. Mesmo usuário
+   AND r.ID_EXERCICIO = m.ID_EXERCICIO                                          -- 2. Mesmo exercício
+   AND r.DATA_RECORD BETWEEN m.DATA_CRIACAO AND NVL(m.DATA_CONCLUSAO, SYSDATE)  -- 3. Dentro da linha do tempo!
+GROUP BY 
+    m.COD_META, u.NOME, e.NOME, m.CARGA_ALVO, m.STATUS;
+```
+
+---
+
 ### 2. 🔗 Conectando `TRE_RECORD` com a `TRE_SERIE` Exata que Gerou o Recorde
 Se o professor pedir para descobrir em qual treino e em qual número de série aquele recorde foi batido:
 1. O treino é do **mesmo usuário**: `t.ID_USUARIO = r.ID_USUARIO`
 2. O treino aconteceu no **mesmo dia do recorde**: `TRUNC(t.DATA_TREINO) = TRUNC(r.DATA_RECORD)`
 3. O item do treino é do **mesmo exercício**: `it.ID_EXERCICIO = r.ID_EXERCICIO`
 4. A série teve **exatamente a mesma carga do recorde**: `s.CARGA = r.CARGA_RECORD`
+
+#### 💻 Exemplo em Código Comentado (`SELECT` Rastreando a Série Exata onde o Recorde Nasceu):
+```sql
+SELECT 
+    r.COD_RECORD,
+    u.NOME AS USUARIO,
+    e.NOME AS EXERCICIO,
+    r.CARGA_RECORD,
+    r.DATA_RECORD,
+    t.COD_TREINO,          -- Qual foi a sessão de treino daquele dia
+    s.COD_SERIE,           -- Qual o código da série exata
+    s.NUMERO_SERIE,        -- Em qual número de série (1ª, 2ª, 3ª...) o recorde saiu
+    s.REPETICOES           -- Quantas repetições ele fez com aquela carga recorde
+FROM TRE_RECORD r
+INNER JOIN TRE_USUARIO u ON u.ID_USUARIO = r.ID_USUARIO
+INNER JOIN TRE_EXERCICIO e ON e.ID_EXERCICIO = r.ID_EXERCICIO
+-- 1 e 2: Liga o recorde ao treino do mesmo aluno e que ocorreu no mesmo dia (TRUNC ignora horas)
+INNER JOIN TRE_TREINO t 
+    ON t.ID_USUARIO = r.ID_USUARIO
+   AND TRUNC(t.DATA_TREINO) = TRUNC(r.DATA_RECORD)
+-- 3: Liga ao item do treino que corresponde exatamente ao mesmo exercício do recorde
+INNER JOIN TRE_ITEM_TREINO it 
+    ON it.ID_TREINO = t.ID_TREINO
+   AND it.ID_EXERCICIO = r.ID_EXERCICIO
+-- 4: Liga à série exata onde a carga levantada bateu o valor do recorde!
+INNER JOIN TRE_SERIE s 
+    ON s.ID_ITEM_TREINO = it.ID_ITEM_TREINO
+   AND s.CARGA = r.CARGA_RECORD;
+```
 
 ---
 
