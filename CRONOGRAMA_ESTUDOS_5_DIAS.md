@@ -87,13 +87,14 @@ Ao puxar **VIEWS** para o Dia 2, liberamos os Dias 3, 4 e 5 para praticar **Func
 ---
 
 ### 🔹 DIA 5: SIMULADO GERAL DE PROVA & REVISÃO
-* **Status:** ⏳ Próximo
+* **Status:** ✅ Concluído (Simulado Teórico 10/10 + Simulado Prático 9,1/10)
 * **Carga Horária:** ~2h00
-* **Foco:** Prova simulada com tempo cronometrado cobrindo:
-  1. Criação de View complexa analítica.
-  2. Consulta de extremos com `GROUP BY` e `HAVING`.
-  3. Criação de Function determinística para uso no `SELECT`.
-  4. Criação de Procedure com parâmetros `IN` e `OUT` manipulando dados do banco.
+* **Foco:** Prova simulada completa (Fase 1 Teórica/Caça aos Bugs + Fase 2 Prática no SQL Developer) cobrindo:
+  1. Relatório gerencial sem Produto Cartesiano (`SELECT` + Subqueries).
+  2. Criação de `VIEW` analítica com vigência temporal e `CASE WHEN`.
+  3. `UPDATE` em lote com subquery correlacionada.
+  4. `PROCEDURE` com conversão `COD_` $\rightarrow$ `ID_`, validação `IF/ELSE` e parâmetro `OUT`.
+  5. `FUNCTION` de volume total + `PROCEDURE` de maior volume com desempate `MIN`.
 
 ---
 
@@ -105,4 +106,4 @@ Ao puxar **VIEWS** para o Dia 2, liberamos os Dias 3, 4 e 5 para praticar **Func
 | **2** | Agregações (GROUP BY/HAVING), Extremos (Q2, Q4) + Início de VIEWS | ✅ Concluído |
 | **3** | DDL & DML Encapsulados em PROCEDURES com Subqueries | ✅ Concluído |
 | **4** | PL/SQL: FUNCTIONS no SELECT + PROCEDURES com IN, OUT, IN OUT | ✅ Concluído |
-| **5** | SIMULADO COMPLETO DE PROVA (Views, Procedures, Functions e SQL) | ⏳ Próximo |
+| **5** | SIMULADO COMPLETO DE PROVA (Views, Procedures, Functions e SQL) | ✅ Concluído |
