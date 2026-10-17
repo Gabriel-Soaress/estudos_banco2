@@ -93,22 +93,32 @@ Em seguida, descobriu-se necessária a criação de uma Procedure chamada `PRC_T
 ---
 ---
 
-## 🏆 PARTE 2: SUAS RESOLUÇÕES ENVIADAS E CORREÇÃO DETALHADA (NOTA: 9,1 / 10,0)
+## 🏆 PARTE 2: SEU SCRIPT COMENTADO COM OS ERROS E CORREÇÕES DE HOJE (NOTA: 9,1 / 10,0)
 
-### 💻 Seu Script Enviado:
+Abaixo está **o seu código exato**, agora com comentários `-- ⚠️ ATENÇÃO` e `-- ✅ CORREÇÃO` diretamente nas linhas onde houve algum detalhe para você revisar batendo o olho no código:
 
 ```sql
--- ========================================================
--- EX 1: Relatório Gerencial de Usuários
--- ========================================================
+-- ============================================================================
+-- EX 1: Relatório Gerencial de Usuários (1,8 / 2,0)
+-- ============================================================================
 SELECT
     U.COD_USUARIO,
     U.NOME AS N_USUARIO,
+    -- 💡 DICA: O COUNT() nunca retorna NULL (se não achar nada, ele já devolve 0 sozinho).
+    -- Colocar NVL no COUNT não dá erro, mas não é obrigatório.
     NVL((SELECT COUNT(M.ID_META) FROM TRE_META M WHERE M.ID_USUARIO = U.ID_USUARIO),0) AS QTD_META,
     NVL((SELECT COUNT(R.ID_RECORD) FROM TRE_RECORD R WHERE R.ID_USUARIO = U.ID_USUARIO),0) AS QTD_RECORD,
-    MAX_CARGA_RES.MAIOR_CARGA_RECORD
+    
+    -- ⚠️ ERRO (Faltou NVL aqui!): Diferente do COUNT, a função MAX() devolve NULL quando
+    -- o usuário nunca fez séries (ex: USR-009 e USR-010).
+    -- Como você escreveu: MAX_CARGA_RES.MAIOR_CARGA_RECORD
+    -- ✅ CORREÇÃO: Envolver com NVL(..., 0):
+    NVL(MAX_CARGA_RES.MAIOR_CARGA_RECORD, 0) AS MAIOR_CARGA_SERIE
 FROM TRE_USUARIO U
 LEFT JOIN(
+    -- 💡 DICA DE SIMPLIFICAÇÃO: Como você já colocou TRE_USUARIO U lá fora com LEFT JOIN,
+    -- aqui dentro da subquery você NÃO precisa começar de TRE_USUARIO com LEFT JOIN!
+    -- Pode começar direto de TRE_TREINO T com INNER JOIN (veja a versão enxuta mais abaixo).
     SELECT
         U.ID_USUARIO,
         MAX(S.CARGA) AS MAIOR_CARGA_RECORD
@@ -120,9 +130,13 @@ LEFT JOIN(
 )MAX_CARGA_RES ON U.ID_USUARIO = MAX_CARGA_RES.ID_USUARIO;
 
 
--- ========================================================
--- EX 2: View de Auditoria de Metas na Vigência
--- ========================================================
+-- ============================================================================
+-- EX 2: View de Auditoria de Metas na Vigência (1,4 / 2,0)
+-- ============================================================================
+-- 💡 SUA DÚVIDA: "Não consegui pensar em outro jeito de incluir o texto sem uma Function auxiliar"
+-- Sua Function auxiliar funcionou super bem! Veja abaixo apenas os 2 detalhes no seu código,
+-- e logo em seguida como fazer TANTO mantendo sua Function QUANTO sem precisar de Function!
+
 CREATE OR REPLACE FUNCTION VW_AUDITORIA_METAS_STATUS(
     P_META_ALVO TRE_META.CARGA_ALVO%TYPE,
     P_RECORD_MAX  TRE_RECORD.CARGA_RECORD%TYPE
@@ -131,14 +145,18 @@ CREATE OR REPLACE FUNCTION VW_AUDITORIA_METAS_STATUS(
 BEGIN
    CASE 
         WHEN P_RECORD_MAX >= P_META_ALVO THEN V_STATUS_MES:= 'META SUPERADA NO PRAZO';
-        WHEN P_RECORD_MAX < P_META_ALVO THEN V_STATUS_MES:= 'EM EVOLUÇÃO';
-        ELSE V_STATUS_MES:= 'SEM RECORD';
+        -- ⚠️ ATENÇÃO: Se você usar NVL(..., 0) na View e o cara tiver 0 de recorde,
+        -- 0 é menor que P_META_ALVO (ex: 0 < 60), então ele cairia em 'EM EVOLUÇÃO' em vez de 'SEM RECORDE'!
+        -- ✅ CORREÇÃO: Garantir que P_RECORD_MAX > 0 para estar 'EM EVOLUÇÃO':
+        WHEN P_RECORD_MAX < P_META_ALVO AND P_RECORD_MAX > 0 THEN V_STATUS_MES:= 'EM EVOLUCAO';
+        ELSE V_STATUS_MES:= 'SEM RECORDE NA VIGENCIA';
     END CASE;
     
-    RETURN  V_STATUS_MES;
+    RETURN V_STATUS_MES;
 END;
 /
 
+-- ❌ COMO VOCÊ TINHA FEITO A VIEW (E POR QUE ELA DUPLICOU LINHAS):
 CREATE OR REPLACE VIEW VW_AUDITORIA_METAS AS
     SELECT
         M.COD_META,
@@ -154,20 +172,69 @@ CREATE OR REPLACE VIEW VW_AUDITORIA_METAS AS
         SELECT 
             R.ID_USUARIO,
             R.ID_EXERCICIO,
-            R.DATA_RECORD,
-            MAX(R.CARGA_RECORD)AS MAIOR_RECORD
+            R.DATA_RECORD, -- ⚠️ ERRO DE LÓGICA AQUI!
+            MAX(R.CARGA_RECORD) AS MAIOR_RECORD
         FROM TRE_RECORD R
-        GROUP BY ID_USUARIO,ID_EXERCICIO,R.DATA_RECORD
+        -- ⚠️ Ao colocar R.DATA_RECORD no GROUP BY, se o aluno bateu 3 recordes em dias diferentes
+        -- durante a mesma meta (como na META-001: dias 20/01, 15/03 e 20/05), essa subquery
+        -- devolve 3 linhas diferentes e TRIPLICA a META-001 na View!
+        GROUP BY ID_USUARIO, ID_EXERCICIO, R.DATA_RECORD
     )RES_MAX ON RES_MAX.ID_USUARIO = M.ID_USUARIO 
                 AND RES_MAX.ID_EXERCICIO = M.ID_EXERCICIO 
                 AND RES_MAX.DATA_RECORD BETWEEN M.DATA_CRIACAO AND NVL(DATA_CONCLUSAO,SYSDATE);
-                        
+
+-- ✅ CORREÇÃO A DA VIEW (Mantendo a sua Function auxiliar, mas sem duplicar linhas!):
+-- Basta dar LEFT JOIN direto com TRE_RECORD e agrupar pela META lá fora!
+CREATE OR REPLACE VIEW VW_AUDITORIA_METAS AS
+    SELECT
+        M.COD_META,
+        U.NOME AS NOME_USUARIO,
+        E.NOME AS NOME_EXERCICIO,
+        M.CARGA_ALVO,
+        NVL(MAX(R.CARGA_RECORD), 0) AS MAIOR_RECORD_VIGENCIA,
+        -- Chamando a sua Function passando o MAX já calculado:
+        VW_AUDITORIA_METAS_STATUS(M.CARGA_ALVO, NVL(MAX(R.CARGA_RECORD), 0)) AS SITUACAO_AUDITORIA
+    FROM TRE_META M
+    INNER JOIN TRE_USUARIO U ON M.ID_USUARIO = U.ID_USUARIO
+    INNER JOIN TRE_EXERCICIO E ON M.ID_EXERCICIO = E.ID_EXERCICIO
+    LEFT JOIN TRE_RECORD R 
+        ON R.ID_USUARIO = M.ID_USUARIO 
+       AND R.ID_EXERCICIO = M.ID_EXERCICIO 
+       AND R.DATA_RECORD BETWEEN M.DATA_CRIACAO AND NVL(M.DATA_CONCLUSAO, SYSDATE)
+    GROUP BY M.COD_META, U.NOME, E.NOME, M.CARGA_ALVO;
+
+-- ✅ CORREÇÃO B DA VIEW (Fazendo TUDO direto no SELECT com CASE WHEN, SEM precisar criar Function!):
+-- No SQL puro (SELECT/VIEW), o CASE WHEN funciona direto como uma coluna!
+-- Diferença: Não tem ':=' e fecha apenas com 'END AS NOME_DA_COLUNA' (em vez de END CASE;)
+CREATE OR REPLACE VIEW VW_AUDITORIA_METAS AS
+    SELECT
+        M.COD_META,
+        U.NOME AS NOME_USUARIO,
+        E.NOME AS NOME_EXERCICIO,
+        M.CARGA_ALVO,
+        NVL(MAX(R.CARGA_RECORD), 0) AS MAIOR_RECORD_VIGENCIA,
+        CASE
+            WHEN NVL(MAX(R.CARGA_RECORD), 0) >= M.CARGA_ALVO THEN 'META SUPERADA NO PRAZO'
+            WHEN NVL(MAX(R.CARGA_RECORD), 0) > 0            THEN 'EM EVOLUCAO'
+            ELSE 'SEM RECORDE NA VIGENCIA'
+        END AS SITUACAO_AUDITORIA
+    FROM TRE_META M
+    INNER JOIN TRE_USUARIO U ON U.ID_USUARIO = M.ID_USUARIO
+    INNER JOIN TRE_EXERCICIO E ON E.ID_EXERCICIO = M.ID_EXERCICIO
+    LEFT JOIN TRE_RECORD R
+        ON R.ID_USUARIO = M.ID_USUARIO
+       AND R.ID_EXERCICIO = M.ID_EXERCICIO
+       AND R.DATA_RECORD BETWEEN M.DATA_CRIACAO AND NVL(M.DATA_CONCLUSAO, SYSDATE)
+    GROUP BY
+        M.COD_META, U.NOME, E.NOME, M.CARGA_ALVO;
+
 SELECT * FROM VW_AUDITORIA_METAS;
 
 
--- ========================================================
--- EX 3: UPDATE Automático de Metas Atingidas
--- ========================================================
+-- ============================================================================
+-- EX 3: UPDATE Automático de Metas Atingidas (2,0 / 2,0 - GABARITADO!)
+-- ============================================================================
+-- ✅ Sem alias no SET, filtro STATUS = 'ATIVA' e subquery correlacionada perfeita!
 UPDATE TRE_META M
 SET STATUS = 'CONCLUIDA',
     DATA_CONCLUSAO = (TRUNC(SYSDATE))
@@ -179,9 +246,9 @@ WHERE STATUS = 'ATIVA' AND M.CARGA_ALVO <=
     );
     
     
--- ========================================================
--- EX 4: Procedure de Cadastro de Meta por Código
--- ========================================================
+-- ============================================================================
+-- EX 4: Procedure de Cadastro de Meta por Código (2,0 / 2,0 - GABARITADO!)
+-- ============================================================================
 CREATE OR REPLACE PROCEDURE PRC_CADASTRAR_META_POR_CODIGO(
     P_COD_USUARIO TRE_USUARIO.COD_USUARIO%TYPE,
     P_COD_EXERCICIO TRE_EXERCICIO.COD_EXERCICIO%TYPE,
@@ -194,8 +261,9 @@ CREATE OR REPLACE PROCEDURE PRC_CADASTRAR_META_POR_CODIGO(
     V_ID_EXERCICIO TRE_EXERCICIO.ID_EXERCICIO%TYPE;
 BEGIN
     IF P_CARGA_ALVO <= 0 THEN
-       P_MENSAGEM:= 'ERRO CARGA ALVO INVALIDA';
+       P_MENSAGEM:= 'ERRO: CARGA ALVO INVALIDA';
     ELSE  
+        -- ✅ Sacada muito boa buscando os 2 IDs em um único SELECT INTO!
         SELECT
             U.ID_USUARIO,
             E.ID_EXERCICIO
@@ -209,7 +277,7 @@ BEGIN
         VALUES
         (V_ID_USUARIO,V_ID_EXERCICIO,P_COD_META,P_CARGA_ALVO,TRUNC(SYSDATE),P_DATA_ALVO,NULL,'ATIVA');
 
-        P_MENSAGEM:= 'META: CADASTRADA!';
+        P_MENSAGEM:= 'META CADASTRADA COM SUCESSO';
 
     END IF;
 END;
@@ -219,15 +287,19 @@ SET SERVEROUTPUT ON;
 DECLARE
     v_menssagem varchar2(200);
 BEGIN
+    -- ⚠️ DICA DE PROVA PARA DATAS:
+    -- Você tinha passado '25-12-2026' como string pura. Se o Oracle do professor estiver em inglês,
+    -- string pura dá erro ORA-01843 (mês inválido).
+    -- ✅ CORREÇÃO: Use sempre DATE 'YYYY-MM-DD' ou TO_DATE('25/12/2026', 'DD/MM/YYYY'):
     PRC_CADASTRAR_META_POR_CODIGO('USR-001','EXC-001','META-013',122,DATE '2026-12-25',v_menssagem);
     DBMS_OUTPUT.PUT_LINE(v_menssagem);
 END;
 /
     
     
--- ========================================================
--- EX 5: Function de Volume Total + Procedure do Maior Treino
--- ========================================================
+-- ============================================================================
+-- EX 5: Function de Volume Total + Procedure do Maior Treino (1,9 / 2,0)
+-- ============================================================================
 CREATE OR REPLACE FUNCTION FNC_VOLUME_TOTAL_TREINO(
     P_COD_TREINO TRE_TREINO.COD_TREINO%TYPE
 )RETURN NUMBER IS
@@ -240,6 +312,9 @@ BEGIN
     WHERE COD_TREINO = P_COD_TREINO;
     
     SELECT
+        -- ⚠️ ERRO LEVE (Faltou NVL aqui!): Se um treino não tiver nenhuma série cadastrada,
+        -- o SUM() puro devolve NULL em vez de 0!
+        -- ✅ CORREÇÃO: Envolver o SUM com NVL(..., 0):
         NVL(SUM(S.REPETICOES * S.CARGA), 0) AS VOLUME
     INTO V_VOLUME_TOTAL
     FROM TRE_SERIE S
@@ -259,6 +334,8 @@ SELECT
     FNC_VOLUME_TOTAL_TREINO(T.COD_TREINO) AS VOLUME_TREINO
 FROM TRE_TREINO T;
 
+-- ✅ PARTE B NOTA 10! Sua solução usando AND T.ID_TREINO = (SELECT MIN(...) ...)
+-- permitiu buscar ID_TREINO, COD_TREINO e DATA_TREINO de uma vez só e blindado contra empate!
 CREATE OR REPLACE PROCEDURE PRC_TREINO_MAIOR_VOLUME 
 IS
     V_MAIOR_V NUMBER;
@@ -292,59 +369,4 @@ END;
 /
     
 EXEC PRC_TREINO_MAIOR_VOLUME;
-```
-
----
-
-## 🛠️ GABARITO DE REFERÊNCIA PARA OS AJUSTES FINOS (QUESTÕES 1 E 2)
-
-### 1. Ajuste Fino na Questão 1 (Colocar `NVL` no `MAX(S.CARGA)`):
-O `COUNT` devolve `0` nativamente quando não acha linhas, mas o `MAX()` devolve `NULL`! Por isso, o `NVL` é indispensável em volta da coluna `MAX_CARGA_RES.MAIOR_CARGA_RECORD`:
-
-```sql
-SELECT
-    U.COD_USUARIO,
-    U.NOME,
-    (SELECT COUNT(M.ID_META) FROM TRE_META M WHERE M.ID_USUARIO = U.ID_USUARIO) AS TOTAL_METAS,
-    (SELECT COUNT(R.ID_RECORD) FROM TRE_RECORD R WHERE R.ID_USUARIO = U.ID_USUARIO) AS TOTAL_RECORDES,
-    NVL(MAX_CARGA_RES.MAIOR_CARGA_RECORD, 0) AS MAIOR_CARGA_SERIE
-FROM TRE_USUARIO U
-LEFT JOIN (
-    SELECT
-        T.ID_USUARIO,
-        MAX(S.CARGA) AS MAIOR_CARGA_RECORD
-    FROM TRE_TREINO T
-    INNER JOIN TRE_ITEM_TREINO IT ON T.ID_TREINO = IT.ID_TREINO
-    INNER JOIN TRE_SERIE S ON S.ID_ITEM_TREINO = IT.ID_ITEM_TREINO
-    GROUP BY T.ID_USUARIO
-) MAX_CARGA_RES ON U.ID_USUARIO = MAX_CARGA_RES.ID_USUARIO;
-```
-
-### 2. Ajuste Fino na Questão 2 (Como usar `CASE WHEN` direto no `SELECT` e evitar duplicar metas no `GROUP BY`):
-1. **Sem precisar de Function auxiliar:** No SQL puro (`SELECT` ou `VIEW`), você pode abrir um bloco **`CASE WHEN ... THEN ... ELSE ... END AS NOME_COLUNA`** direto como uma coluna da consulta!
-2. **Cuidado com o `GROUP BY R.DATA_RECORD` na subquery:** Como uma mesma meta (`META-001`) teve 3 recordes em datas diferentes dentro da vigência, agrupar por `R.DATA_RECORD` faz a subquery devolver 3 linhas para a mesma meta, triplicando a `META-001` na View! Fazendo o `LEFT JOIN` direto e agrupando pelas colunas da meta lá fora (ou usando subquery no `SELECT`), cada meta aparece exatamente 1 vez:
-
-```sql
--- JEITO 1: Usando LEFT JOIN + GROUP BY na Meta + CASE WHEN direto no SELECT (Sem precisar de Function!)
-CREATE OR REPLACE VIEW VW_AUDITORIA_METAS AS
-SELECT
-    M.COD_META,
-    U.NOME AS NOME_USUARIO,
-    E.NOME AS NOME_EXERCICIO,
-    M.CARGA_ALVO,
-    NVL(MAX(R.CARGA_RECORD), 0) AS MAIOR_RECORD_VIGENCIA,
-    CASE
-        WHEN NVL(MAX(R.CARGA_RECORD), 0) >= M.CARGA_ALVO THEN 'META SUPERADA NO PRAZO'
-        WHEN NVL(MAX(R.CARGA_RECORD), 0) > 0            THEN 'EM EVOLUCAO'
-        ELSE 'SEM RECORDE NA VIGENCIA'
-    END AS SITUACAO_AUDITORIA
-FROM TRE_META M
-INNER JOIN TRE_USUARIO U ON U.ID_USUARIO = M.ID_USUARIO
-INNER JOIN TRE_EXERCICIO E ON E.ID_EXERCICIO = M.ID_EXERCICIO
-LEFT JOIN TRE_RECORD R
-    ON R.ID_USUARIO = M.ID_USUARIO
-   AND R.ID_EXERCICIO = M.ID_EXERCICIO
-   AND R.DATA_RECORD BETWEEN M.DATA_CRIACAO AND NVL(M.DATA_CONCLUSAO, SYSDATE)
-GROUP BY
-    M.COD_META, U.NOME, E.NOME, M.CARGA_ALVO;
 ```

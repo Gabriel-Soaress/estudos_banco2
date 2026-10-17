@@ -197,3 +197,46 @@
   2. Mesmo exercício: `r.ID_EXERCICIO = m.ID_EXERCICIO`
   3. Data do recorde dentro da validade da meta:  
      `r.DATA_RECORD BETWEEN m.DATA_CRIACAO AND NVL(m.DATA_CONCLUSAO, SYSDATE)`
+
+---
+
+## 13. 🕳️ Por que o `COUNT()` não precisa de `NVL`, mas o `MAX()`, `MIN()`, `SUM()` e `AVG()` SEMPRE precisam?
+* **A Dúvida / Erro no Simulado (Ex 1 e Ex 5):** Colocar `NVL` nas subqueries de `COUNT()`, mas esquecer de colocar `NVL` no `MAX(S.CARGA)` ou no `SUM(S.REPETICOES * S.CARGA)`.
+* **O que o Banco pensa:**
+  * Se você perguntar *"Quantas moedas tem no meu bolso vazio?"* (`COUNT`), a resposta matemática é **`0`**. O `COUNT` nunca devolve `NULL`!
+  * Mas se você perguntar *"Qual é a maior moeda no meu bolso vazio?"* (`MAX`) ou *"Qual a soma das moedas no bolso vazio?"* (`SUM`), não existe nenhuma moeda para medir, então o banco devolve **`NULL`** (vazio)!
+* **Regra de Ouro para a Prova:** Toda vez que escrever `MAX(...)`, `MIN(...)`, `SUM(...)` ou `AVG(...)` e o enunciado pedir para mostrar `0` quando não houver registros, envolva **obrigatoriamente** com `NVL(..., 0)`.
+
+---
+
+## 14. 🎭 Como colocar textos condicionais (`CASE WHEN`) direto no `SELECT` ou `VIEW` (Sem precisar criar Function)?
+* **A Dúvida no Simulado (Ex 2):** *"Como não era uma Procedure, não consegui pensar em outro jeito de incluir o texto condicional na View sem criar uma Function auxiliar."*
+* **A Solução:** O `CASE WHEN` também existe no SQL puro (dentro do `SELECT` ou `VIEW`)! Veja a diferença entre os dois:
+
+```sql
+-- 1. NO SQL PURO (DENTRO DO SELECT OU VIEW):
+-- Não tem ':=' e fecha apenas com 'END AS NOME_DA_COLUNA'
+SELECT
+    M.COD_META,
+    CASE
+        WHEN NVL(MAX(R.CARGA_RECORD), 0) >= M.CARGA_ALVO THEN 'META SUPERADA NO PRAZO'
+        WHEN NVL(MAX(R.CARGA_RECORD), 0) > 0            THEN 'EM EVOLUCAO'
+        ELSE 'SEM RECORDE NA VIGENCIA'
+    END AS SITUACAO_AUDITORIA
+FROM ...
+
+-- 2. NO PL/SQL (DENTRO DE PROCEDURE OU FUNCTION):
+-- Usa ':=' para guardar na variável e fecha com 'END CASE;'
+CASE
+    WHEN v_record >= v_alvo THEN v_msg := 'META SUPERADA NO PRAZO';
+    WHEN v_record > 0       THEN v_msg := 'EM EVOLUCAO';
+    ELSE v_msg := 'SEM RECORDE NA VIGENCIA';
+END CASE;
+```
+
+---
+
+## 15. 📅 A Armadilha de Agrupar por `DATA_RECORD` na Subquery de Metas (Ex 2 do Simulado)
+* **O Erro:** Fazer uma subquery em `TRE_RECORD` com `GROUP BY ID_USUARIO, ID_EXERCICIO, DATA_RECORD` para juntar com `TRE_META`.
+* **Por que duplica as metas?** Uma mesma meta (ex: `META-001`) dura vários meses e o aluno pode bater **3 recordes em 3 datas diferentes** dentro da vigência dela (`20/01`, `15/03` e `20/05`). Se você colocar `DATA_RECORD` no `GROUP BY` da subquery, ela vai devolver 3 linhas para a mesma meta, fazendo a `META-001` aparecer **triplicada** na View!
+* **Como fazer certo:** Dê `LEFT JOIN TRE_RECORD R ON R.ID_USUARIO = M.ID_USUARIO AND R.ID_EXERCICIO = M.ID_EXERCICIO AND R.DATA_RECORD BETWEEN ...` direto na consulta principal e agrupe pelas colunas da **Meta** (`GROUP BY M.COD_META, U.NOME, E.NOME, M.CARGA_ALVO`), ou use uma Subquery Escalar no `SELECT`!
