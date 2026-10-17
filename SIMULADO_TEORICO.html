@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Simulado Teórico & Caça aos Erros - Banco de Dados II</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background-color: #0f172a;
+      color: #f8fafc;
+    }
+    .card {
+      background-color: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 0.75rem;
+      padding: 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    pre {
+      background-color: #090d16;
+      border: 1px solid #334155;
+      border-radius: 0.5rem;
+      padding: 0.85rem;
+      color: #38bdf8;
+      overflow-x: auto;
+      font-size: 0.82rem;
+      margin: 0.75rem 0;
+    }
+    textarea {
+      width: 100%;
+      background-color: #090d16;
+      color: #f8fafc;
+      border: 1px solid #475569;
+      border-radius: 0.5rem;
+      padding: 0.75rem;
+      margin-top: 0.5rem;
+      font-size: 0.9rem;
+    }
+    textarea:focus {
+      outline: 2px solid #38bdf8;
+      border-color: transparent;
+    }
+    .option-label {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      padding: 0.75rem;
+      border: 1px solid #334155;
+      border-radius: 0.5rem;
+      margin-top: 0.5rem;
+      cursor: pointer;
+      transition: background-color 0.15s;
+    }
+    .option-label:hover {
+      background-color: #334155;
+    }
+    .btn-primary {
+      background-color: #2563eb;
+      color: #ffffff;
+      font-weight: 700;
+      padding: 0.85rem 1.5rem;
+      border-radius: 0.75rem;
+      border: none;
+      cursor: pointer;
+      font-size: 0.95rem;
+      transition: background-color 0.15s;
+    }
+    .btn-primary:hover {
+      background-color: #1d4ed8;
+    }
+    .badge {
+      display: inline-block;
+      background-color: #1d4ed8;
+      color: #e0f2fe;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 0.25rem 0.75rem;
+      border-radius: 9999px;
+      margin-bottom: 0.5rem;
+    }
+  </style>
+</head>
+<body class="p-6">
+  <div style="max-width: 900px; margin: 0 auto;">
+    <!-- Cabeçalho -->
+    <div class="card">
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+        <div>
+          <span class="badge">FASE 1 DO SIMULADO • PROVA TEÓRICA E CAÇA AOS ERROS</span>
+          <h1 style="font-size: 1.5rem; font-weight: 800; margin: 0.25rem 0;">
+            Simulado Diagnóstico: Oracle SQL &amp; PL/SQL
+          </h1>
+          <p style="color: #94a3b8; font-size: 0.9rem; margin: 0;">
+            10 questões focadas nos conceitos, pegadinhas de prova e leitura crítica de código. Responda tudo e clique no botão final para copiar suas respostas e colar no chat!
+          </p>
+        </div>
+        <div style="background-color: #090d16; border: 1px solid #334155; border-radius: 0.5rem; padding: 0.75rem 1.25rem; text-align: center;">
+          <div style="font-size: 0.75rem; color: #94a3b8;">Progresso</div>
+          <div id="progress-badge" style="font-size: 1.25rem; font-weight: 800;">0 / 10</div>
+        </div>
+      </div>
+    </div>
+
+    <h2 style="font-size: 1.2rem; font-weight: 700; margin: 1.5rem 0 1rem; border-bottom: 1px solid #334155; padding-bottom: 0.5rem;">
+      Parte 1: Múltipla Escolha (Questões 1 a 5)
+    </h2>
+
+    <!-- Q1 -->
+    <div class="card">
+      <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: #94a3b8; margin-bottom: 0.5rem;">
+        <strong>QUESTÃO 1 • PRODUTO CARTESIANO</strong>
+        <span id="status-q1">Não respondida</span>
+      </div>
+      <p>Um aluno precisa listar o nome de cada usuário, a quantidade total de metas dele e a quantidade total de recordes dele. Ele escreveu a seguinte consulta:</p>
+      <pre>SELECT u.NOME, COUNT(m.ID_META) AS METAS, COUNT(r.ID_RECORD) AS RECORDES
+FROM TRE_USUARIO u
+LEFT JOIN TRE_META m ON m.ID_USUARIO = u.ID_USUARIO
+LEFT JOIN TRE_RECORD r ON r.ID_USUARIO = u.ID_USUARIO
+GROUP BY u.NOME;</pre>
+      <p>Se o usuário "Lucas" tiver <strong>3 metas</strong> e <strong>4 recordes</strong> no banco, o que essa consulta vai retornar na linha do Lucas e por quê?</p>
+      <div>
+        <label class="option-label">
+          <input type="radio" name="q1" value="A" onchange="updateProgress()" />
+          <span><strong>A)</strong> Vai retornar 3 metas e 4 recordes corretamente, pois o <code>LEFT JOIN</code> e o <code>GROUP BY u.NOME</code> separam as contagens automaticamente.</span>
+        </label>
+        <label class="option-label">
+          <input type="radio" name="q1" value="B" onchange="updateProgress()" />
+          <span><strong>B)</strong> Vai gerar erro de compilação <code>ORA-00979</code>, pois não é permitido usar dois <code>COUNT</code> de tabelas diferentes no mesmo <code>GROUP BY</code>.</span>
+        </label>
+        <label class="option-label">
+          <input type="radio" name="q1" value="C" onchange="updateProgress()" />
+          <span><strong>C)</strong> Vai retornar <strong>12 metas e 12 recordes</strong>, porque cruzar duas tabelas filhas (1:N) no mesmo nível multiplica as linhas (3 &times; 4 = 12) antes do <code>COUNT</code> contar.</span>
+        </label>
+        <label class="option-label">
+          <input type="radio" name="q1" value="D" onchange="updateProgress()" />
+          <span><strong>D)</strong> Vai retornar 7 metas e 7 recordes, pois o banco soma as linhas das duas tabelas filhas (3 + 4 = 7).</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Q2 -->
+    <div class="card">
+      <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: #94a3b8; margin-bottom: 0.5rem;">
+        <strong>QUESTÃO 2 • GROUP BY, WHERE vs HAVING</strong>
+        <span id="status-q2">Não respondida</span>
+      </div>
+      <p>Queremos exibir o <code>ID_USUARIO</code> e a média de duração de seus treinos, mas considerando <strong>apenas treinos realizados no ano de 2026</strong> e exibindo <strong>apenas usuários cuja média de duração supere 45 minutos</strong>. Qual alternativa está 100% correta?</p>
+      <div>
+        <label class="option-label">
+          <input type="radio" name="q2" value="A" onchange="updateProgress()" />
+          <span><strong>A)</strong> Filtrar o ano de 2026 e o <code>AVG(DURACAO_MINUTO) &gt; 45</code> ambos dentro da cláusula <code>WHERE</code>.</span>
+        </label>
+        <label class="option-label">
+          <input type="radio" name="q2" value="B" onchange="updateProgress()" />
+          <span><strong>B)</strong> Filtrar o ano de 2026 no <code>WHERE</code> (antes de fechar a caixa), agrupar com <code>GROUP BY ID_USUARIO</code> e filtrar <code>AVG(DURACAO_MINUTO) &gt; 45</code> no <code>HAVING</code>.</span>
+        </label>
+        <label class="option-label">
+          <input type="radio" name="q2" value="C" onchange="updateProgress()" />
+          <span><strong>C)</strong> Não usar <code>GROUP BY</code> e colocar <code>HAVING DATA_TREINO &gt;= ... AND AVG(DURACAO_MINUTO) &gt; 45</code>.</span>
+        </label>
+        <label class="option-label">
+          <input type="radio" name="q2" value="D" onchange="updateProgress()" />
+          <span><strong>D)</strong> Filtrar o <code>AVG(DURACAO_MINUTO) &gt; 45</code> no <code>WHERE</code> e filtrar a coluna individual <code>DATA_TREINO</code> no <code>HAVING</code> sem colocá-la no <code>GROUP BY</code>.</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Q3 -->
+    <div class="card">
+      <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: #94a3b8; margin-bottom: 0.5rem;">
+        <strong>QUESTÃO 3 • OPERADOR NOT IN E VALORES NULOS</strong>
+        <span id="status-q3">Não respondida</span>
+      </div>
+      <p>Na tabela <code>TRE_EXERCICIO</code>, a coluna <code>ID_USUARIO</code> indica o autor do exercício, mas <strong>vários exercícios globais possuem <code>ID_USUARIO = NULL</code></strong>. Se alguém rodar a consulta abaixo para achar usuários que nunca criaram exercícios personalizados:</p>
+      <pre>SELECT NOME FROM TRE_USUARIO
+WHERE ID_USUARIO NOT IN (SELECT ID_USUARIO FROM TRE_EXERCICIO);</pre>
+      <p>Qual será o resultado retornado pelo Oracle?</p>
+      <div>
+        <label class="option-label">
+          <input type="radio" name="q3" value="A" onchange="updateProgress()" />
+          <span><strong>A)</strong> Retornará normalmente todos os usuários que não são autores de exercícios, ignorando os nulos automaticamente.</span>
+        </label>
+        <label class="option-label">
+          <input type="radio" name="q3" value="B" onchange="updateProgress()" />
+          <span><strong>B)</strong> Retornará <strong>ZERO linhas (vazio)</strong> sem dar erro de sintaxe, porque a presença de um único <code>NULL</code> dentro da lista do <code>NOT IN</code> torna todas as comparações <code>&lt;&gt; NULL</code> desconhecidas (<code>UNKNOWN</code>).</span>
+        </label>
+        <label class="option-label">
+          <input type="radio" name="q3" value="C" onchange="updateProgress()" />
+          <span><strong>C)</strong> Vai travar com o erro <code>ORA-01400: cannot compare NULL inside subquery</code>.</span>
+        </label>
+        <label class="option-label">
+          <input type="radio" name="q3" value="D" onchange="updateProgress()" />
+          <span><strong>D)</strong> Retornará todos os usuários da tabela, pois o <code>NULL</code> anula o filtro do <code>WHERE</code>.</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Q4 -->
+    <div class="card">
+      <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: #94a3b8; margin-bottom: 0.5rem;">
+        <strong>QUESTÃO 4 • PARÂMETROS IN, OUT E IN OUT</strong>
+        <span id="status-q4">Não respondida</span>
+      </div>
+      <p>Considere a procedure <code>PRC_CALCULAR(p_id IN NUMBER, p_carga IN OUT NUMBER, p_status OUT VARCHAR2)</code>. Qual afirmação abaixo é <strong>VERDADEIRA</strong> sobre o funcionamento e a chamada dessa procedure?</p>
+      <div>
+        <label class="option-label">
+          <input type="radio" name="q4" value="A" onchange="updateProgress()" />
+          <span><strong>A)</strong> Podemos testar a procedure passando números fixos para <code>p_carga</code>, como <code>EXEC PRC_CALCULAR(1, 80, v_status);</code>, pois <code>p_carga</code> também é de entrada.</span>
+        </label>
+        <label class="option-label">
+          <input type="radio" name="q4" value="B" onchange="updateProgress()" />
+          <span><strong>B)</strong> Dentro da procedure, podemos fazer <code>p_id := 10;</code> caso o ID passado seja negativo.</span>
+        </label>
+        <label class="option-label">
+          <input type="radio" name="q4" value="C" onchange="updateProgress()" />
+          <span><strong>C)</strong> Tanto <code>p_carga</code> (<code>IN OUT</code>) quanto <code>p_status</code> (<code>OUT</code>) exigem obrigatoriamente que quem chamou passe <strong>variáveis declaradas em memória</strong> (envelopes), caso contrário ocorre o erro <code>PLS-00363</code>.</span>
+        </label>
+        <label class="option-label">
+          <input type="radio" name="q4" value="D" onchange="updateProgress()" />
+          <span><strong>D)</strong> Podemos chamar <code>SELECT NOME, PRC_CALCULAR(ID_USUARIO, CARGA, STATUS) FROM TRE_USUARIO;</code> diretamente em uma consulta SQL.</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Q5 -->
+    <div class="card">
+      <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: #94a3b8; margin-bottom: 0.5rem;">
+        <strong>QUESTÃO 5 • REGRAS DAS FUNCTIONS NO SELECT</strong>
+        <span id="status-q5">Não respondida</span>
+      </div>
+      <p>Para que uma <code>FUNCTION</code> compile sem erros e possa ser chamada dentro de um comando <code>SELECT</code> (ex: <code>SELECT NOME, FNC_TESTE(ID_USUARIO) FROM TRE_USUARIO</code>), quais regras ela deve respeitar obrigatoriamente?</p>
+      <div>
+        <label class="option-label">
+          <input type="radio" name="q5" value="A" onchange="updateProgress()" />
+          <span><strong>A)</strong> Deve especificar o tamanho no tipo de retorno do cabeçalho (ex: <code>RETURN VARCHAR2(100)</code>) e pode ter parâmetros <code>OUT</code>.</span>
+        </label>
+        <label class="option-label">
+          <input type="radio" name="q5" value="B" onchange="updateProgress()" />
+          <span><strong>B)</strong> Não pode ter tamanho no tipo do <code>RETURN</code> do cabeçalho, <strong>não pode ter parâmetros <code>OUT</code> / <code>IN OUT</code></strong> (<code>ORA-06572</code>) e <strong>não pode executar comandos DML</strong> como <code>INSERT/UPDATE/DELETE</code> (<code>ORA-14551</code>).</span>
+        </label>
+        <label class="option-label">
+          <input type="radio" name="q5" value="C" onchange="updateProgress()" />
+          <span><strong>C)</strong> Pode executar <code>UPDATE</code> dentro dela normalmente, desde que tenha <code>RETURN SQL%ROWCOUNT;</code> no final.</span>
+        </label>
+        <label class="option-label">
+          <input type="radio" name="q5" value="D" onchange="updateProgress()" />
+          <span><strong>D)</strong> Não precisa da cláusula <code>RETURN</code> no corpo se já tiver usado <code>DBMS_OUTPUT.PUT_LINE</code>.</span>
+        </label>
+      </div>
+    </div>
+
+    <h2 style="font-size: 1.2rem; font-weight: 700; margin: 2rem 0 1rem; border-bottom: 1px solid #334155; padding-bottom: 0.5rem;">
+      Parte 2: Caça aos Erros e Dissertativas (Questões 6 a 10)
+    </h2>
+
+    <!-- Q6 -->
+    <div class="card">
+      <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: #94a3b8; margin-bottom: 0.5rem;">
+        <strong>QUESTÃO 6 • CAÇA AOS ERROS: SUBQUERY NO FROM (ILHA E CRACHÁ)</strong>
+        <span id="status-q6">Não respondida</span>
+      </div>
+      <p>O código abaixo tentou usar uma Subquery no <code>FROM</code> (Post-it temporário) para mostrar o nome do usuário e sua maior carga em séries, mas possui <strong>2 erros fatais</strong>. Quais são os 2 erros e como deixá-lo correto?</p>
+      <pre>SELECT u.NOME, resumo.MAIOR_CARGA
+FROM TRE_USUARIO u
+LEFT JOIN (
+    SELECT MAX(s.CARGA) AS MAIOR_CARGA
+    FROM TRE_TREINO t
+    INNER JOIN TRE_ITEM_TREINO it ON it.ID_TREINO = t.ID_TREINO
+    INNER JOIN TRE_SERIE s ON s.ID_ITEM_TREINO = it.ID_ITEM_TREINO
+    WHERE t.ID_USUARIO = u.ID_USUARIO
+    GROUP BY t.ID_USUARIO
+) resumo ON resumo.ID_USUARIO = u.ID_USUARIO;</pre>
+      <textarea id="q6" rows="4" oninput="updateProgress()" placeholder="Digite aqui os 2 erros que você encontrou nesse código..."></textarea>
+    </div>
+
+    <!-- Q7 -->
+    <div class="card">
+      <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: #94a3b8; margin-bottom: 0.5rem;">
+        <strong>QUESTÃO 7 • CAÇA AOS ERROS: PROCEDURE E SELECT ... INTO</strong>
+        <span id="status-q7">Não respondida</span>
+      </div>
+      <p>Analise a procedure abaixo. Ela compila sem erros, mas possui <strong>1 bug lógico</strong> (o nome do usuário sai em branco no terminal) e <strong>1 bomba-relógio</strong> que faz a procedure quebrar com <code>ORA-01422</code> se o usuário tiver dois treinos empatados com a maior duração. Aponte onde estão esses dois problemas e como corrigi-los:</p>
+      <pre>CREATE OR REPLACE PROCEDURE PRC_RESUMO_TREINO (p_cod_usr IN VARCHAR2) IS
+    v_id_usr   TRE_USUARIO.ID_USUARIO%TYPE;
+    v_nome_usr TRE_USUARIO.NOME%TYPE;
+    v_maior_t  NUMBER;
+    v_cod_tr   TRE_TREINO.COD_TREINO%TYPE;
+BEGIN
+    SELECT ID_USUARIO INTO v_id_usr
+    FROM TRE_USUARIO WHERE COD_USUARIO = p_cod_usr;
+
+    SELECT MAX(DURACAO_MINUTO) INTO v_maior_t
+    FROM TRE_TREINO WHERE ID_USUARIO = v_id_usr;
+
+    SELECT COD_TREINO INTO v_cod_tr
+    FROM TRE_TREINO
+    WHERE ID_USUARIO = v_id_usr AND DURACAO_MINUTO = v_maior_t;
+
+    DBMS_OUTPUT.PUT_LINE('Nome: ' || v_nome_usr || ' | Treino: ' || v_cod_tr);
+END;</pre>
+      <textarea id="q7" rows="4" oninput="updateProgress()" placeholder="Explique os 2 problemas e como corrigir..."></textarea>
+    </div>
+
+    <!-- Q8 -->
+    <div class="card">
+      <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: #94a3b8; margin-bottom: 0.5rem;">
+        <strong>QUESTÃO 8 • CAÇA AOS ERROS: FUNCTION, %ROWTYPE E CASE</strong>
+        <span id="status-q8">Não respondida</span>
+      </div>
+      <p>A Function abaixo tem <strong>3 erros clássicos de PL/SQL</strong> (um no cabeçalho, um no uso do <code>%ROWTYPE</code> e um no <code>CASE</code>). Identifique os 3 erros:</p>
+      <pre>CREATE OR REPLACE FUNCTION FNC_AVALIAR_META (p_id_meta IN NUMBER)
+RETURN VARCHAR2(50) IS
+    v_meta TRE_META%ROWTYPE;
+    v_msg  VARCHAR2(50);
+BEGIN
+    SELECT CARGA_ALVO, STATUS
+    INTO v_meta
+    FROM TRE_META
+    WHERE ID_META = p_id_meta;
+
+    CASE
+        WHEN v_meta.CARGA_ALVO >= 100 THEN v_msg := 'META PESADA';
+        WHEN v_meta.CARGA_ALVO >= 50  THEN v_msg := 'META MEDIA';
+    END CASE;
+
+    RETURN v_msg;
+END;</pre>
+      <textarea id="q8" rows="4" oninput="updateProgress()" placeholder="Liste os 3 erros (1 no RETURN do cabeçalho, 1 no SELECT INTO do %ROWTYPE e 1 no CASE)..."></textarea>
+    </div>
+
+    <!-- Q9 -->
+    <div class="card">
+      <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: #94a3b8; margin-bottom: 0.5rem;">
+        <strong>QUESTÃO 9 • CAÇA AOS ERROS: UPDATE CONSUMINDO FUNCTION</strong>
+        <span id="status-q9">Não respondida</span>
+      </div>
+      <p>Olhe o comando <code>UPDATE</code> abaixo dentro de uma procedure:</p>
+      <pre>UPDATE TRE_RECORD r
+SET r.CARGA_RECORD = FNC_MAIOR_CARGA_USUARIO(p_id_usuario, r.ID_EXERCICIO)
+WHERE r.ID_USUARIO = p_id_usuario
+  AND FNC_MAIOR_CARGA_USUARIO(p_id_usuario, r.ID_EXERCICIO) > r.CARGA_RECORD;</pre>
+      <p>
+        Responda:<br/>
+        1) Qual detalhe na linha do <code>SET</code> faz o Oracle recusar esse comando com o erro <code>ORA-01747</code>?<br/>
+        2) Com suas palavras, como o Oracle sabe qual <code>r.ID_EXERCICIO</code> mandar para a função se nós só passamos <code>p_id_usuario</code> na procedure?
+      </p>
+      <textarea id="q9" rows="4" oninput="updateProgress()" placeholder="Responda os itens 1 e 2..."></textarea>
+    </div>
+
+    <!-- Q10 -->
+    <div class="card">
+      <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: #94a3b8; margin-bottom: 0.5rem;">
+        <strong>QUESTÃO 10 • MODELAGEM E REGRAS DE NEGÓCIO: META &times; RECORDE &times; SÉRIE</strong>
+        <span id="status-q10">Não respondida</span>
+      </div>
+      <p>
+        No nosso banco, <code>TRE_RECORD</code> não possui a coluna <code>ID_META</code> nem a coluna <code>ID_SERIE</code>.<br/>
+        <strong>a)</strong> Quais são as 3 condições lógicas (colunas que você precisa comparar no <code>WHERE</code> ou <code>ON</code>) para saber se um recorde aconteceu durante a vigência de uma meta?<br/>
+        <strong>b)</strong> E quais condições você usa para descobrir em qual série exata (<code>TRE_SERIE</code>) aquele recorde foi batido?
+      </p>
+      <textarea id="q10" rows="4" oninput="updateProgress()" placeholder="Responda a) e b)..."></textarea>
+    </div>
+
+    <!-- BOTÃO DE FINALIZAÇÃO -->
+    <div class="card">
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+        <div>
+          <h3 style="margin: 0; font-size: 1.1rem;">Finalizar e Copiar Respostas</h3>
+          <p style="margin: 0.25rem 0 0; font-size: 0.85rem; color: #94a3b8;">
+            Clique no botão ao lado para juntar todas as suas respostas e copiar automaticamente. Depois é só colar (Ctrl+V) no chat!
+          </p>
+        </div>
+        <button class="btn-primary" onclick="exportAndCopy()">
+          📋 Juntar Respostas e Copiar para o Chat
+        </button>
+      </div>
+
+      <div id="copy-feedback" style="display: none; margin-top: 1rem; padding: 0.75rem; background-color: #064e3b; border: 1px solid #10b981; border-radius: 0.5rem; font-weight: 600;">
+        ✅ Respostas copiadas! Agora basta ir no chat e dar Ctrl+V (ou copiar da caixa abaixo).
+      </div>
+
+      <div id="output-container" style="display: none; margin-top: 1rem;">
+        <label style="font-size: 0.8rem; color: #94a3b8;">Texto gerado das suas respostas:</label>
+        <textarea id="final-output" rows="12" readonly></textarea>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function getRadioValue(name) {
+      const el = document.querySelector(`input[name="${name}"]:checked`);
+      return el ? el.value : '';
+    }
+
+    function updateProgress() {
+      let count = 0;
+      for (let i = 1; i <= 5; i++) {
+        const val = getRadioValue('q' + i);
+        const badge = document.getElementById('status-q' + i);
+        if (val) {
+          count++;
+          badge.textContent = 'Marcada: ' + val;
+          badge.style.color = '#38bdf8';
+        } else {
+          badge.textContent = 'Não respondida';
+          badge.style.color = '#94a3b8';
+        }
+      }
+      for (let i = 6; i <= 10; i++) {
+        const val = document.getElementById('q' + i).value.trim();
+        const badge = document.getElementById('status-q' + i);
+        if (val.length > 0) {
+          count++;
+          badge.textContent = 'Respondida ✓';
+          badge.style.color = '#38bdf8';
+        } else {
+          badge.textContent = 'Não respondida';
+          badge.style.color = '#94a3b8';
+        }
+      }
+      document.getElementById('progress-badge').textContent = count + ' / 10';
+    }
+
+    function exportAndCopy() {
+      const q1 = getRadioValue('q1') || '(Em branco)';
+      const q2 = getRadioValue('q2') || '(Em branco)';
+      const q3 = getRadioValue('q3') || '(Em branco)';
+      const q4 = getRadioValue('q4') || '(Em branco)';
+      const q5 = getRadioValue('q5') || '(Em branco)';
+
+      const q6 = document.getElementById('q6').value.trim() || '(Em branco)';
+      const q7 = document.getElementById('q7').value.trim() || '(Em branco)';
+      const q8 = document.getElementById('q8').value.trim() || '(Em branco)';
+      const q9 = document.getElementById('q9').value.trim() || '(Em branco)';
+      const q10 = document.getElementById('q10').value.trim() || '(Em branco)';
+
+      const lines = [
+        '=== MINHAS RESPOSTAS DO SIMULADO TEÓRICO (10 QUESTÕES) ===',
+        '',
+        '[MÚLTIPLA ESCOLHA]',
+        `Q1 (Produto Cartesiano): ${q1}`,
+        `Q2 (GROUP BY / WHERE vs HAVING): ${q2}`,
+        `Q3 (NOT IN com NULL): ${q3}`,
+        `Q4 (Parâmetros IN / OUT / IN OUT): ${q4}`,
+        `Q5 (Functions no SELECT): ${q5}`,
+        '',
+        '[DISSERTATIVAS E CAÇA AOS ERROS]',
+        `Q6 (Subquery no FROM - 2 erros):\n${q6}`,
+        '',
+        `Q7 (Procedure SELECT INTO - 2 problemas):\n${q7}`,
+        '',
+        `Q8 (Function, %ROWTYPE e CASE - 3 erros):\n${q8}`,
+        '',
+        `Q9 (UPDATE com Function - alias e esteira):\n${q9}`,
+        '',
+        `Q10 (Vigência Meta x Recorde x Série):\n${q10}`
+      ];
+
+      const fullText = lines.join('\n');
+      const outputBox = document.getElementById('final-output');
+      const outputContainer = document.getElementById('output-container');
+      const feedback = document.getElementById('copy-feedback');
+
+      outputBox.value = fullText;
+      outputContainer.style.display = 'block';
+      feedback.style.display = 'block';
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(fullText).catch(() => {
+          outputBox.select();
+          document.execCommand('copy');
+        });
+      } else {
+        outputBox.select();
+        document.execCommand('copy');
+      }
+    }
+  </script>
+</body>
+</html>
