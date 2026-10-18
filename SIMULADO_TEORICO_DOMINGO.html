@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Simulado Teórico Final (Domingo) - Banco de Dados II</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background-color: #0f172a;
+      color: #f8fafc;
+    }
+    .card {
+      background-color: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 0.75rem;
+      padding: 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    pre {
+      background-color: #090d16;
+      border: 1px solid #334155;
+      border-radius: 0.5rem;
+      padding: 0.85rem;
+      color: #38bdf8;
+      overflow-x: auto;
+      font-size: 0.82rem;
+      margin: 0.75rem 0;
+    }
+    textarea {
+      width: 100%;
+      background-color: #090d16;
+      color: #f8fafc;
+      border: 1px solid #475569;
+      border-radius: 0.5rem;
+      padding: 0.75rem;
+      margin-top: 0.5rem;
+      font-size: 0.9rem;
+    }
+    textarea:focus {
+      outline: 2px solid #38bdf8;
+      border-color: transparent;
+    }
+    .option-label {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      padding: 0.75rem;
+      border: 1px solid #334155;
+      border-radius: 0.5rem;
+      margin-top: 0.5rem;
+      cursor: pointer;
+      transition: background-color 0.15s;
+    }
+    .option-label:hover {
+      background-color: #334155;
+    }
+    .btn-primary {
+      background-color: #10b981;
+      color: #052e16;
+      font-weight: 800;
+      padding: 0.9rem 1.5rem;
+      border-radius: 0.75rem;
+      border: none;
+      cursor: pointer;
+      font-size: 0.95rem;
+      transition: background-color 0.15s;
+    }
+    .btn-primary:hover {
+      background-color: #059669;
+      color: #ffffff;
+    }
+    .badge {
+      display: inline-block;
+      background-color: #065f46;
+      color: #a7f3d0;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 0.25rem 0.75rem;
+      border-radius: 9999px;
+      margin-bottom: 0.5rem;
+    }
+  </style>
+</head>
+<body class="p-6">
+  <div class="max-w-4xl mx-auto">
+    <!-- Cabeçalho -->
+    <div class="card">
+      <div class="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <span class="badge">DOMINGO • RETA FINAL ANTES DA PROVA</span>
+          <h1 class="text-2xl font-bold">2º Simulado Teórico &amp; Caça aos Bugs (Ajuste Fino + 4 Questões do Professor)</h1>
+          <p class="text-sm text-slate-300 mt-1">
+            10 questões inéditas cobrindo exatamente os detalhes do Simulado Prático de ontem e a lógica das 4 questões clássicas do professor. Responda e clique no botão final para copiar!
+          </p>
+        </div>
+        <div class="bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-center">
+          <div class="text-xs text-slate-400">Progresso</div>
+          <div id="progress-badge" class="text-lg font-bold text-emerald-400">0 / 10</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PARTE 1: MÚLTIPLA ESCOLHA -->
+    <h2 class="text-lg font-bold border-b border-slate-700 pb-2 mb-4">
+      Parte 1: Múltipla Escolha — Blindagem de Detalhes (Questões 1 a 5)
+    </h2>
+
+    <!-- Q1 -->
+    <div class="card">
+      <div class="text-xs font-bold text-emerald-400 uppercase">Questão 1 • Comportamento de Nulos em Funções de Agregação</div>
+      <p class="font-semibold mt-1">
+        Em um relatório gerencial que deve exibir <code>0</code> para usuários sem registros, qual é a diferença fundamental de comportamento entre a função <code>COUNT()</code> e as funções matemáticas <code>MAX()</code>, <code>MIN()</code>, <code>SUM()</code> e <code>AVG()</code> quando não existem linhas correspondentes para aquele usuário?
+      </p>
+      <label class="option-label">
+        <input type="radio" name="q1" value="A" onchange="updateProgress()" class="mt-1" />
+        <span><strong>A)</strong> Nenhuma diferença: todas as funções de agregação retornam <code>0</code> automaticamente quando não encontram linhas.</span>
+      </label>
+      <label class="option-label">
+        <input type="radio" name="q1" value="B" onchange="updateProgress()" class="mt-1" />
+        <span><strong>B)</strong> O <code>COUNT()</code> nunca retorna <code>NULL</code> (retorna <code>0</code> nativamente quando a contagem é vazia), enquanto <code>MAX()</code>, <code>MIN()</code>, <code>SUM()</code> e <code>AVG()</code> retornam <code>NULL</code> quando não há linhas — exigindo obrigatoriamente <code>NVL(..., 0)</code> para não exibir células vazias.</span>
+      </label>
+      <label class="option-label">
+        <input type="radio" name="q1" value="C" onchange="updateProgress()" class="mt-1" />
+        <span><strong>C)</strong> O <code>SUM()</code> e o <code>MAX()</code> retornam <code>0</code> sozinhos, mas o <code>COUNT()</code> retorna <code>NULL</code> se não tiver <code>NVL</code>.</span>
+      </label>
+      <label class="option-label">
+        <input type="radio" name="q1" value="D" onchange="updateProgress()" class="mt-1" />
+        <span><strong>D)</strong> É proibido usar <code>NVL</code> ao redor de funções como <code>MAX()</code> ou <code>SUM()</code> no Oracle.</span>
+      </label>
+    </div>
+
+    <!-- Q2 -->
+    <div class="card">
+      <div class="text-xs font-bold text-emerald-400 uppercase">Questão 2 • CASE WHEN no SQL Puro (SELECT/VIEW) vs CASE no PL/SQL</div>
+      <p class="font-semibold mt-1">
+        Você precisa criar uma coluna calculada de texto (ex: <code>SITUACAO</code>) dentro de uma <code>VIEW</code> ou <code>SELECT</code> sem criar uma Function auxiliar. Qual é a diferença sintática exata entre o <code>CASE</code> dentro de um <code>SELECT</code> e o <code>CASE</code> dentro de uma Procedure/Function PL/SQL?
+      </p>
+      <label class="option-label">
+        <input type="radio" name="q2" value="A" onchange="updateProgress()" class="mt-1" />
+        <span><strong>A)</strong> Não é permitido usar <code>CASE WHEN</code> dentro de um <code>SELECT</code> ou <code>VIEW</code>; o <code>CASE</code> só existe dentro de blocos PL/SQL.</span>
+      </label>
+      <label class="option-label">
+        <input type="radio" name="q2" value="B" onchange="updateProgress()" class="mt-1" />
+        <span><strong>B)</strong> No <code>SELECT</code>/<code>VIEW</code>, o <code>CASE</code> funciona como uma expressão de coluna: devolve o valor direto após o <code>THEN</code> (sem usar <code>:=</code>) e fecha apenas com <code>END AS NOME_COLUNA</code>. Já no PL/SQL procedural, executa atribuições com <code>:=</code>, exige <code>ELSE</code> para evitar <code>ORA-06592</code> e fecha com <code>END CASE;</code>.</span>
+      </label>
+      <label class="option-label">
+        <input type="radio" name="q2" value="C" onchange="updateProgress()" class="mt-1" />
+        <span><strong>C)</strong> Dentro do <code>SELECT</code>, o <code>CASE</code> exige obrigatoriamente terminar com <code>END CASE AS NOME_COLUNA;</code> e usar <code>:=</code> após cada <code>THEN</code>.</span>
+      </label>
+      <label class="option-label">
+        <input type="radio" name="q2" value="D" onchange="updateProgress()" class="mt-1" />
+        <span><strong>D)</strong> Dentro do <code>SELECT</code>, o <code>CASE WHEN</code> só aceita números e nunca pode retornar textos (<code>VARCHAR2</code>).</span>
+      </label>
+    </div>
+
+    <!-- Q3 -->
+    <div class="card">
+      <div class="text-xs font-bold text-emerald-400 uppercase">Questão 3 • A Armadilha do WHERE matando o LEFT JOIN</div>
+      <p class="font-semibold mt-1">
+        Analise a consulta abaixo, que deveria listar <strong>todos os 10 usuários do banco</strong> (mesmo os que não têm meta) e a quantidade de metas ativas de cada um:
+      </p>
+      <pre>SELECT u.NOME, COUNT(m.ID_META) AS QTD_ATIVAS
+FROM TRE_USUARIO u
+LEFT JOIN TRE_META m ON m.ID_USUARIO = u.ID_USUARIO
+WHERE m.STATUS = 'ATIVA'
+GROUP BY u.ID_USUARIO, u.NOME;</pre>
+      <p class="font-semibold">O que acontece quando esse comando é executado?</p>
+      <label class="option-label">
+        <input type="radio" name="q3" value="A" onchange="updateProgress()" class="mt-1" />
+        <span><strong>A)</strong> Funciona perfeitamente e mostra todos os 10 usuários, exibindo <code>0</code> para quem não tem meta ativa.</span>
+      </label>
+      <label class="option-label">
+        <input type="radio" name="q3" value="B" onchange="updateProgress()" class="mt-1" />
+        <span><strong>B)</strong> Os usuários sem meta ativa <strong>somem do resultado</strong>! Como para eles <code>m.STATUS</code> vem <code>NULL</code> do <code>LEFT JOIN</code>, o filtro <code>WHERE m.STATUS = 'ATIVA'</code> lá fora elimina essas linhas (transformando o <code>LEFT JOIN</code> em um <code>INNER JOIN</code> disfarçado). A condição deveria estar no <code>ON</code> (<code>AND m.STATUS = 'ATIVA'</code>) ou em uma subquery no <code>SELECT</code>.</span>
+      </label>
+      <label class="option-label">
+        <input type="radio" name="q3" value="C" onchange="updateProgress()" class="mt-1" />
+        <span><strong>C)</strong> Ocorre erro de sintaxe porque <code>LEFT JOIN</code> não permite cláusula <code>WHERE</code>.</span>
+      </label>
+      <label class="option-label">
+        <input type="radio" name="q3" value="D" onchange="updateProgress()" class="mt-1" />
+        <span><strong>D)</strong> Gera produto cartesiano entre usuários e metas.</span>
+      </label>
+    </div>
+
+    <!-- Q4 -->
+    <div class="card">
+      <div class="text-xs font-bold text-emerald-400 uppercase">Questão 4 • Questão Clássica do Professor: "Qual aluno tem a maior média?"</div>
+      <p class="font-semibold mt-1">
+        Para responder à pergunta <em>"Qual o nome do aluno que possui a maior média de notas de toda a escola?"</em>, por que escrevemos <code>GROUP BY a.ID_ALUNO, a.NOME</code> seguido de <code>HAVING AVG(n.NOTA) = (SELECT MAX(AVG(NOTA)) FROM NOTA GROUP BY ID_ALUNO)</code>?
+      </p>
+      <label class="option-label">
+        <input type="radio" name="q4" value="A" onchange="updateProgress()" class="mt-1" />
+        <span><strong>A)</strong> Porque poderíamos escrever apenas <code>SELECT a.NOME, MAX(AVG(n.NOTA)) FROM ... GROUP BY a.NOME</code> direto sem subquery, mas a subquery deixa o código mais bonito.</span>
+      </label>
+      <label class="option-label">
+        <input type="radio" name="q4" value="B" onchange="updateProgress()" class="mt-1" />
+        <span><strong>B)</strong> Porque o Oracle não permite colocar uma coluna solta (<code>a.NOME</code>) no mesmo <code>SELECT</code> que aninha duas funções de grupo (<code>MAX(AVG(...))</code>). Por isso, a consulta principal agrupa por aluno e calcula a média de cada um (<code>AVG</code>), e o <code>HAVING</code> usa a subquery para descobrir qual é o valor da maior média da sala inteira (<code>MAX(AVG)</code>) e filtrar apenas o(s) aluno(s) que empataram naquele topo.</span>
+      </label>
+      <label class="option-label">
+        <input type="radio" name="q4" value="C" onchange="updateProgress()" class="mt-1" />
+        <span><strong>C)</strong> Porque a função <code>AVG</code> só pode ser usada dentro da cláusula <code>WHERE</code>.</span>
+      </label>
+      <label class="option-label">
+        <input type="radio" name="q4" value="D" onchange="updateProgress()" class="mt-1" />
+        <span><strong>D)</strong> Porque o <code>GROUP BY ID_ALUNO</code> dentro da subquery do <code>HAVING</code> é opcional e pode ser removido sem mudar o resultado.</span>
+      </label>
+    </div>
+
+    <!-- Q5 -->
+    <div class="card">
+      <div class="text-xs font-bold text-emerald-400 uppercase">Questão 5 • Padrão ATV_GRUPO: Desempate no SELECT ... INTO</div>
+      <p class="font-semibold mt-1">
+        Na sua Procedure <code>PRC_TREINO_MAIOR_VOLUME</code> de ontem (e na <code>TREINO_MAX_SERIE2</code> do <code>ATV_GRUPO.sql</code>), após descobrir o maior valor (<code>V_MAIOR_V</code>), você usou <code>MIN(ID_TREINO)</code> para buscar o treino vencedor. Por que esse cuidado é essencial dentro de uma Procedure?
+      </p>
+      <label class="option-label">
+        <input type="radio" name="q5" value="A" onchange="updateProgress()" class="mt-1" />
+        <span><strong>A)</strong> Porque se dois treinos empatarem com o mesmo volume máximo, um <code>SELECT ID_TREINO, COD_TREINO INTO ... WHERE VOLUME = V_MAIOR_V</code> sem desempate devolverá 2 linhas para variáveis simples (a "cadeira de 1 lugar"), abortando a Procedure com o erro <code>ORA-01422: exact fetch returns more than requested number of rows</code>.</span>
+      </label>
+      <label class="option-label">
+        <input type="radio" name="q5" value="B" onchange="updateProgress()" class="mt-1" />
+        <span><strong>B)</strong> Porque no PL/SQL todo comando <code>SELECT ... INTO</code> é obrigado por sintaxe a ter a função <code>MIN()</code>.</span>
+      </label>
+      <label class="option-label">
+        <input type="radio" name="q5" value="C" onchange="updateProgress()" class="mt-1" />
+        <span><strong>C)</strong> Porque o <code>MIN(ID_TREINO)</code> ordena as linhas na tela do console.</span>
+      </label>
+      <label class="option-label">
+        <input type="radio" name="q5" value="D" onchange="updateProgress()" class="mt-1" />
+        <span><strong>D)</strong> Porque sem o <code>MIN()</code> a Function não consegue ser chamada no <code>WHERE</code>.</span>
+      </label>
+    </div>
+
+    <!-- PARTE 2: DISSERTATIVAS E CAÇA AOS ERROS -->
+    <h2 class="text-lg font-bold border-b border-slate-700 pb-2 mt-8 mb-4">
+      Parte 2: Caça aos Bugs &amp; Aquecimento para o Banco do Professor (Questões 6 a 10)
+    </h2>
+
+    <!-- Q6 -->
+    <div class="card">
+      <div class="text-xs font-bold text-amber-400 uppercase">Questão 6 • Revisão Cirúrgica do Erro da View de Ontem (2 Bugs Lógicos)</div>
+      <p class="font-semibold mt-1">
+        Observe o código abaixo (baseado na Questão 2 de ontem) que tenta montar uma View mostrando cada meta uma única vez e sua classificação:
+      </p>
+      <pre>CREATE OR REPLACE FUNCTION FNC_CLASSIFICA(p_alvo NUMBER, p_rec NUMBER) RETURN VARCHAR2 IS
+    v_msg VARCHAR2(50);
+BEGIN
+    CASE
+        WHEN p_rec >= p_alvo THEN v_msg := 'SUPERADA';
+        WHEN p_rec < p_alvo  THEN v_msg := 'EM EVOLUCAO';
+        ELSE v_msg := 'SEM RECORDE';
+    END CASE;
+    RETURN v_msg;
+END;
+/
+
+CREATE OR REPLACE VIEW VW_TESTE_METAS AS
+SELECT m.COD_META, NVL(res.MAIOR_REC, 0) AS REC,
+       FNC_CLASSIFICA(m.CARGA_ALVO, NVL(res.MAIOR_REC, 0)) AS SITUACAO
+FROM TRE_META m
+LEFT JOIN (
+    SELECT ID_USUARIO, ID_EXERCICIO, DATA_RECORD, MAX(CARGA_RECORD) AS MAIOR_REC
+    FROM TRE_RECORD
+    GROUP BY ID_USUARIO, ID_EXERCICIO, DATA_RECORD
+) res ON res.ID_USUARIO = m.ID_USUARIO
+     AND res.ID_EXERCICIO = m.ID_EXERCICIO
+     AND res.DATA_RECORD BETWEEN m.DATA_CRIACAO AND NVL(m.DATA_CONCLUSAO, SYSDATE);</pre>
+      <p class="text-sm text-slate-300">
+        Explique os <strong>2 bugs lógicos</strong> desse código:
+        <br/>1) Por que a <code>META-001</code> aparece <strong>repetida 3 vezes</strong> ao dar <code>SELECT * FROM VW_TESTE_METAS</code>?
+        <br/>2) Quando uma meta não tem nenhum recorde (e o <code>NVL(res.MAIOR_REC, 0)</code> passa <code>0</code> para a Function), por que ela recebe <code>'EM EVOLUCAO'</code> em vez de <code>'SEM RECORDE'</code>?
+      </p>
+      <textarea id="q6" rows="4" oninput="updateProgress()" placeholder="1) Por que triplicou a meta...&#10;2) Por que o 0 caiu em EM EVOLUCAO..."></textarea>
+    </div>
+
+    <!-- Q7 -->
+    <div class="card">
+      <div class="text-xs font-bold text-amber-400 uppercase">Questão 7 • Caça aos Bugs: Questão 3 do Professor (UPDATE com CASE WHEN e Subquery)</div>
+      <p class="font-semibold mt-1">
+        Inspirado na questão do professor de criar e atualizar o campo <code>SEXO</code> (ou faixa de carga), um aluno escreveu o seguinte comando <code>UPDATE</code> e um <code>DELETE</code> logo abaixo:
+      </p>
+      <pre>-- Comando 1:
+UPDATE ALUNO a
+SET a.SEXO = CASE
+                 WHEN a.NOME LIKE '%a' THEN 'F'
+                 ELSE 'M'
+             END;
+
+-- Comando 2: Apagar disciplinas que nunca tiveram notas lançadas
+DELETE FROM DISCIPLINA
+WHERE ID_DISCIPLINA NOT IN (
+    SELECT ID_DISCIPLINA FROM NOTA
+);</pre>
+      <p class="text-sm text-slate-300">
+        1) Qual erro de sintaxe o Oracle vai acusar no <strong>Comando 1</strong> (especificamente na linha do <code>SET</code>)?<br/>
+        2) Qual cláusula de segurança está faltando dentro da subquery do <strong>Comando 2</strong> para evitar que um único <code>NULL</code> na coluna <code>ID_DISCIPLINA</code> de <code>NOTA</code> faça o <code>DELETE</code> apagar zero linhas?
+      </p>
+      <textarea id="q7" rows="3" oninput="updateProgress()" placeholder="1) Erro no SET do Comando 1...&#10;2) Proteção que falta no Comando 2..."></textarea>
+    </div>
+
+    <!-- Q8 -->
+    <div class="card">
+      <div class="text-xs font-bold text-amber-400 uppercase">Questão 8 • Caça aos Bugs: Questão 4 do Professor (Maior e Menor Nota por Sexo)</div>
+      <p class="font-semibold mt-1">
+        Para responder à questão do professor <em>"Homens com maior e menor nota; Mulheres idem"</em> em uma única consulta lado a lado por <code>SEXO</code>, um aluno montou as subqueries no <code>FROM</code> assim:
+      </p>
+      <pre>SELECT
+    resumo.SEXO,
+    maior.NOME AS ALUNO_MAIOR_NOTA,
+    resumo.MAIOR_NOTA,
+    menor.NOME AS ALUNO_MENOR_NOTA,
+    resumo.MENOR_NOTA
+FROM (
+    SELECT a.SEXO, MAX(n.VALOR_NOTA) AS MAIOR_NOTA, MIN(n.VALOR_NOTA) AS MENOR_NOTA
+    FROM ALUNO a
+    INNER JOIN NOTA n ON n.ID_ALUNO = a.ID_ALUNO
+    GROUP BY a.SEXO
+) resumo
+INNER JOIN (
+    SELECT a.NOME, a.SEXO, n.VALOR_NOTA
+    FROM ALUNO a INNER JOIN NOTA n ON n.ID_ALUNO = a.ID_ALUNO
+) maior ON maior.VALOR_NOTA = resumo.MAIOR_NOTA
+INNER JOIN (
+    SELECT a.NOME, a.SEXO, n.VALOR_NOTA
+    FROM ALUNO a INNER JOIN NOTA n ON n.ID_ALUNO = a.ID_ALUNO
+) menor ON menor.VALOR_NOTA = resumo.MENOR_NOTA;</pre>
+      <p class="text-sm text-slate-300">
+        As 3 subqueries estão bem montadas, mas <strong>faltou uma condição crucial nos dois <code>ON</code> lá de fora</strong>! Se a maior nota entre as Mulheres for <code>9.5</code>, e um Homem também tiver tirado <code>9.5</code> (mesmo que a maior nota dos Homens seja <code>10.0</code>), o nome desse Homem vai aparecer na linha das Mulheres! <strong>O que faltou comparar nos dois <code>ON</code> para não misturar Homens com Mulheres?</strong>
+      </p>
+      <textarea id="q8" rows="3" oninput="updateProgress()" placeholder="Explique qual condição faltou adicionar nos dois ON..."></textarea>
+    </div>
+
+    <!-- Q9 -->
+    <div class="card">
+      <div class="text-xs font-bold text-amber-400 uppercase">Questão 9 • Caça aos Bugs: Chamada de Procedure com Datas e IN OUT</div>
+      <p class="font-semibold mt-1">
+        Veja a definição da Procedure abaixo e o bloco anônimo que tenta testá-la:
+      </p>
+      <pre>CREATE OR REPLACE PROCEDURE PRC_AJUSTAR_META (
+    p_cod_meta   IN VARCHAR2,
+    p_nova_data  IN DATE,
+    p_nova_carga IN OUT NUMBER,
+    p_msg        OUT VARCHAR2
+) IS ...
+
+-- Bloco de Teste escrito pelo aluno:
+DECLARE
+    v_resposta VARCHAR2(100);
+BEGIN
+    PRC_AJUSTAR_META('META-001', '25-12-2026', 120, v_resposta);
+    DBMS_OUTPUT.PUT_LINE(v_resposta);
+END;</pre>
+      <p class="text-sm text-slate-300">
+        Aponte os <strong>2 problemas na linha da chamada <code>PRC_AJUSTAR_META('META-001', '25-12-2026', 120, v_resposta);</code></strong>:
+        <br/>1) Por que passar o número <code>120</code> direto ali causa erro de compilação <code>PLS-00363</code>?
+        <br/>2) Qual é a forma segura de passar a data <code>25/12/2026</code> no segundo parâmetro para não depender do idioma da sessão do Oracle?
+      </p>
+      <textarea id="q9" rows="3" oninput="updateProgress()" placeholder="1) Problema com o 120 literal...&#10;2) Como passar a data com segurança..."></textarea>
+    </div>
+
+    <!-- Q10 -->
+    <div class="card">
+      <div class="text-xs font-bold text-amber-400 uppercase">Questão 10 • Aquecimento para as 4 Questões no Banco Original do Professor</div>
+      <p class="font-semibold mt-1">
+        Antes de irmos escrever o código no banco original do professor (Alunos, Professores, Disciplinas, Notas), responda rápido:
+        <br/>a) Na <strong>Questão 1</strong> (<em>"Quantos professores e alunos com nomes começados com 'F'?"</em>), como você monta o <code>SELECT</code> para exibir as duas contagens lado a lado em uma única linha (sem usar <code>UNION</code>)?
+        <br/>b) Na <strong>Questão 2</strong> (<em>"Qual aluno com a maior média e em qual disciplina foi a maior nota?"</em>), qual é a diferença entre achar o dono da <strong>maior média</strong> (que precisa de <code>GROUP BY</code> + <code>HAVING</code>) e achar a disciplina da <strong>maior nota individual</strong> (que usa apenas subquery no <code>WHERE</code> sem precisar de <code>GROUP BY</code>)?
+      </p>
+      <textarea id="q10" rows="4" oninput="updateProgress()" placeholder="a) Como montar a Q1 com DUAL...&#10;b) Diferença entre achar a maior média vs achar a maior nota individual..."></textarea>
+    </div>
+
+    <!-- Botão Final de Exportação -->
+    <div class="card bg-slate-900 border-emerald-500">
+      <h3 class="text-lg font-bold mb-1">Pronto para corrigir e partir para as 4 questões do professor?</h3>
+      <p class="text-sm text-slate-300 mb-4">
+        Clique no botão abaixo para juntar suas 10 respostas e copiar automaticamente para colar no chat!
+      </p>
+      <button type="button" onclick="copiarRespostas()" class="btn-primary w-full">
+        📋 Juntar Minhas Respostas de Domingo e Copiar para o Chat
+      </button>
+      <div id="copy-status" class="hidden mt-3 p-3 rounded-lg bg-emerald-900/60 border border-emerald-500 text-emerald-200 text-sm font-semibold text-center">
+        ✅ Respostas copiadas com sucesso! Agora é só dar Ctrl+V lá no chat!
+      </div>
+      <div id="output-Wrapper" class="hidden mt-4">
+        <label class="text-xs text-slate-400 uppercase font-bold">Resumo gerado (copie abaixo caso precise):</label>
+        <textarea id="final-output" rows="10" readonly></textarea>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function getRadioValue(name) {
+      const el = document.querySelector('input[name="' + name + '"]:checked');
+      return el ? el.value : 'NÃO RESPONDIDA';
+    }
+
+    function updateProgress() {
+      let count = 0;
+      ['q1', 'q2', 'q3', 'q4', 'q5'].forEach(q => {
+        if (document.querySelector('input[name="' + q + '"]:checked')) count++;
+      });
+      ['q6', 'q7', 'q8', 'q9', 'q10'].forEach(id => {
+        const val = document.getElementById(id).value.trim();
+        if (val.length > 0) count++;
+      });
+      document.getElementById('progress-badge').textContent = count + ' / 10';
+    }
+
+    function copiarRespostas() {
+      const q1 = getRadioValue('q1');
+      const q2 = getRadioValue('q2');
+      const q3 = getRadioValue('q3');
+      const q4 = getRadioValue('q4');
+      const q5 = getRadioValue('q5');
+
+      const q6 = document.getElementById('q6').value.trim() || '(Em branco)';
+      const q7 = document.getElementById('q7').value.trim() || '(Em branco)';
+      const q8 = document.getElementById('q8').value.trim() || '(Em branco)';
+      const q9 = document.getElementById('q9').value.trim() || '(Em branco)';
+      const q10 = document.getElementById('q10').value.trim() || '(Em branco)';
+
+      const texto = [
+        '=== MINHAS RESPOSTAS DO 2º SIMULADO TEÓRICO (DOMINGO) ===',
+        '',
+        '[MÚLTIPLA ESCOLHA]',
+        'Q1 (COUNT vs MAX/SUM com NVL): ' + q1,
+        'Q2 (CASE WHEN no SELECT vs PL/SQL): ' + q2,
+        'Q3 (LEFT JOIN vs WHERE): ' + q3,
+        'Q4 (Maior Média no HAVING): ' + q4,
+        'Q5 (Desempate MIN no SELECT INTO): ' + q5,
+        '',
+        '[DISSERTATIVAS E CAÇA AOS ERROS]',
+        'Q6 (2 Bugs da View de ontem - GROUP BY data e 0 no CASE):',
+        q6,
+        '',
+        'Q7 (UPDATE do SEXO e DELETE com NOT IN):',
+        q7,
+        '',
+        'Q8 (Maior e Menor por SEXO - o que faltou no ON):',
+        q8,
+        '',
+        'Q9 (Chamada de Procedure - 120 em IN OUT e Data):',
+        q9,
+        '',
+        'Q10 (Aquecimento das 4 Questões do Professor):',
+        q10
+      ].join('\n');
+
+      const outBox = document.getElementById('final-output');
+      const wrapper = document.getElementById('output-Wrapper');
+      const status = document.getElementById('copy-status');
+
+      outBox.value = texto;
+      wrapper.classList.remove('hidden');
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(texto).then(() => {
+          status.classList.remove('hidden');
+        }).catch(() => {
+          outBox.select();
+          document.execCommand('copy');
+          status.classList.remove('hidden');
+        });
+      } else {
+        outBox.select();
+        document.execCommand('copy');
+        status.classList.remove('hidden');
+      }
+    }
+  </script>
+</body>
+</html>
