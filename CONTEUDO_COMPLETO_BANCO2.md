@@ -13,6 +13,7 @@
   * 1.5 Regras de Ouro das Subqueries no `FROM` (Ilha Isolada e Proibição de Vírgula)
   * 1.6 A Tabela `DUAL` (A Esteira de Fábrica de Uma Linha)
   * 1.7 Funções de Tratamento de Nulos e Textos (`NVL`, `COALESCE`, `UPPER`)
+  * **1.8 🔥 GUIA MESTRE DAS SUBQUERIES: O Que Muda no `SELECT`, no `FROM`/`JOIN`, no `WHERE` e no `HAVING`?**
 * **[PARTE 2: GROUP BY, HAVING, EXTREMOS, FUNÇÕES NUMÉRICAS E VIEWS (DIA 2)](#parte-2-group-by-having-extremos-funções-numéricas-e-views-dia-2)**
   * 2.1 A Regra de Ouro do `GROUP BY` (A Analogia das Caixas de Papelão Lacradas)
   * 2.2 `WHERE` vs `HAVING` (A Peneira Grossa vs O Controle de Qualidade)
@@ -204,6 +205,155 @@ FROM DUAL;
 | **`NVL(valor, substituto)`** | Exclusiva do Oracle. Recebe 2 argumentos: se o 1º for `NULL`, devolve o 2º. | **O Tapa-Buraco:** Quando você faz `LEFT JOIN` e o aluno não tem meta, a coluna vem `NULL`. O `NVL` troca o vazio por `0`. | `NVL(m.CARGA_ALVO, 0)` |
 | **`COALESCE(v1, v2, v3...)`** | Padrão SQL universal. Olha a lista da esquerda para a direita e devolve o **primeiro valor não-nulo** que encontrar. | **O Plano de Contingência (Plano A, B, C):** Tenta usar a carga da meta; se for nula, tenta usar o recorde; se ambos forem nulos, mostra `0`. | `COALESCE(m.CARGA_ALVO, r.CARGA_RECORD, 0)` |
 | **`UPPER(texto)`** | Converte todas as letras do texto para MAIÚSCULAS. | **O Padronizador:** Garante que buscas com `LIKE` encontrem `'gabriel'`, `'Gabriel'` ou `'GABRIEL'`. | `WHERE UPPER(u.NOME) LIKE 'G%'` |
+
+---
+
+## 1.8 🔥 GUIA MESTRE DAS SUBQUERIES: O Que Muda no `SELECT`, no `FROM`/`JOIN`, no `WHERE` e no `HAVING`?
+
+Se você sente que às vezes confunde o que pode ou não pode fazer dentro de uma subquery, **o segredo está na POSIÇÃO onde você abriu o parêntese `(SELECT ...)`**!
+No SQL, uma subquery muda completamente de comportamento dependendo do lugar onde ela mora.
+
+---
+
+### 🗺️ 1. O Mapa Visual das 4 Posições de Subquery
+
+```
+SELECT 
+    u.NOME,
+    (SELECT ...) AS COLUNA_CALCULADA          ◄── [POSIÇÃO 1: NO SELECT]
+                                                  • É uma CÉLULA DO EXCEL (1 linha x 1 coluna).
+                                                  • ENXERGA a tabela de fora (usa WHERE r.ID = u.ID lá dentro).
+                                                  • NÃO usa GROUP BY lá dentro!
+
+FROM TRE_USUARIO u
+LEFT JOIN (
+    SELECT ID_USUARIO, MAX(CARGA) ...         ◄── [POSIÇÃO 2: NO FROM ou JOIN]
+    FROM ...                                      • É uma TABELA TEMPORÁRIA INTEIRA (várias linhas e colunas).
+    GROUP BY ID_USUARIO                           • NÃO ENXERGA a tabela de fora (Ilha Fechada!).
+) resumo ON resumo.ID_USUARIO = u.ID_USUARIO      • Usa GROUP BY + Crachá (ID) lá dentro, e liga no ON lá fora!
+
+WHERE u.ID_USUARIO IN (SELECT ...)            ◄── [POSIÇÃO 3: NO WHERE]
+   OR r.CARGA = (SELECT MAX(...) FROM ...)        • É um FILTRO DE LINHAS (não cria coluna na tela!).
+                                                  • Com '=' devolve 1 valor só; com 'IN / NOT IN' devolve 1 coluna com várias linhas.
+
+GROUP BY ...
+HAVING AVG(s.CARGA) = (SELECT MAX(AVG(...))   ◄── [POSIÇÃO 4: NO HAVING]
+                       FROM ...                   • É um FILTRO DE CAIXAS JÁ AGRUPADAS (ex: achar a maior média).
+                       GROUP BY ID_USUARIO)       • Tem GROUP BY lá dentro, mas NÃO tem ID no SELECT de dentro!
+```
+
+---
+
+### 📊 2. Tabela Comparativa Direta (Bateu o Olho, Lembrou na Prova!)
+
+| Pergunta / Regra | 1️⃣ Subquery no `SELECT` | 2️⃣ Subquery no `FROM` ou `JOIN` | 3️⃣ Subquery no `WHERE` | 4️⃣ Subquery no `HAVING` |
+| :--- | :--- | :--- | :--- | :--- |
+| **O que ela é na prática?** | Uma **célula única** (uma coluna calculada na tela). | Uma **tabela temporária (Post-it)** com várias linhas e colunas. | Um **porteiro (filtro)** que decide qual linha passa ou é barrada. | Um **juiz final** que compara o resultado de um grupo com o teto geral. |
+| **Quantas COLUNAS pode ter no `SELECT` dela?** | **Apenas 1 coluna!** (Se colocar 2 colunas, dá erro `ORA-00913`). | **Quantas colunas você quiser!** (Geralmente os IDs de crachá + os cálculos). | **Apenas 1 coluna!** | **Apenas 1 coluna!** |
+| **Quantas LINHAS ela pode devolver?** | **Apenas 1 linha!** (Por isso sempre usamos `COUNT`, `MAX`, `MIN`, `SUM` lá dentro). | **Várias linhas!** (Uma linha para cada usuário/exercício agrupado). | • Com `=`, `>`, `<`: **1 linha**.<br>• Com `IN` / `NOT IN`: **Várias linhas**. | Com `=`: **1 linha** (ex: `MAX(AVG(...))`). |
+| **Ela enxerga a tabela de fora (`u.ID_USUARIO`)?** | ✅ **SIM!** Você escreve `WHERE r.ID_USUARIO = u.ID_USUARIO` **dentro** dela! | ❌ **NUNCA!** É uma **Ilha Fechada**! Se tentar usar `u.ID_USUARIO` lá dentro, dá erro `ORA-00904`! | ✅ **SIM!** Pode ser independente (maior do banco) ou amarrada à linha de fora (ex: no `UPDATE`). | Geralmente **NÃO** precisa (ela olha a tabela toda para achar o `MAX(AVG)`). |
+| **Precisa de `GROUP BY` lá dentro?** | ❌ **NÃO!** (Como o `WHERE` interno já filtra 1 aluno por vez, não precisa agrupar). | ✅ **SIM!** (Para espremer várias linhas em 1 linha por `ID_USUARIO` e evitar produto cartesiano). | ❌ **NÃO!** (Usa apenas `MAX(...)`, `MIN(...)` ou lista de `ID`s). | ✅ **SIM!** (Usa `GROUP BY ID_USUARIO` lá dentro para o `MAX(AVG(...))` funcionar). |
+| **Como se conecta com a consulta de fora?** | Pelo **`WHERE` dentro** dos parênteses + `AS APELIDO` fora. | Pelo **`ON` fora** dos parênteses (`ON res.ID = u.ID`). | Pelo operador **antes** do parêntese (`WHERE col = (...)` ou `WHERE col IN (...)`). | Pelo operador **antes** do parêntese (`HAVING AVG(...) = (...)`). |
+
+---
+
+### ⚔️ 3. O Confronto Lado a Lado: O MESMO Problema no `SELECT` vs no `FROM` (`LEFT JOIN`)
+
+Muitas vezes na prova você pode escolher se quer resolver pelo `SELECT` ou pelo `FROM`/`JOIN`. Veja exatamente **o que muda de lugar** quando resolvemos o mesmo problema das duas formas:
+
+> **Objetivo:** Mostrar o nome de todos os usuários e o maior recorde (`MAX(CARGA_RECORD)`) de cada um (mostrando `0` para quem não tem).
+
+#### 🅰️ Fazendo com Subquery no `SELECT` (A Célula do Excel):
+```sql
+SELECT
+    u.NOME,
+    NVL((
+        SELECT MAX(r.CARGA_RECORD)      -- 1. Só 1 coluna no SELECT interno (NÃO coloca ID_USUARIO aqui!)
+        FROM TRE_RECORD r
+        WHERE r.ID_USUARIO = u.ID_USUARIO -- 2. Enxerga o 'u' de fora! Faz a ligação AQUI DENTRO no WHERE!
+                                        -- 3. NÃO tem GROUP BY aqui dentro!
+    ), 0) AS MAIOR_RECORD
+FROM TRE_USUARIO u;                     -- 4. O FROM lá fora fica limpinho, sem nenhum JOIN!
+```
+
+#### 🅱️ Fazendo com Subquery no `FROM` / `LEFT JOIN` (O Post-it / Ilha Fechada):
+```sql
+SELECT
+    u.NOME,
+    NVL(res.MAIOR_RECORD, 0) AS MAIOR_RECORD -- 1. Puxa a coluna pronta lá do Post-it 'res'
+FROM TRE_USUARIO u
+LEFT JOIN (
+    SELECT 
+        r.ID_USUARIO,                   -- 2. OBRIGATÓRIO colocar o Crachá (ID_USUARIO) no SELECT interno!
+        MAX(r.CARGA_RECORD) AS MAIOR_RECORD
+    FROM TRE_RECORD r
+    -- ❌ PROIBIDO colocar 'WHERE r.ID_USUARIO = u.ID_USUARIO' aqui dentro! (Ilha fechada!)
+    GROUP BY r.ID_USUARIO               -- 3. OBRIGATÓRIO usar GROUP BY aqui dentro para separar por aluno!
+) res ON res.ID_USUARIO = u.ID_USUARIO; -- 4. A ligação com o 'u' é feita AQUI FORA no ON!
+```
+
+> 💡 **Olhe para os dois códigos acima e grave esta regra de ouro:**
+> * **Vai fazer no `SELECT`?** $\rightarrow$ **SEM** `ID` no `SELECT` interno, **SEM** `GROUP BY` interno, e **COM** `WHERE r.ID = u.ID` **dentro**!
+> * **Vai fazer no `FROM` / `JOIN`?** $\rightarrow$ **COM** `ID` no `SELECT` interno, **COM** `GROUP BY ID` interno, e **COM** `ON res.ID = u.ID` **fora**!
+> * *(Se o enunciado da prova NÃO obrigar a usar subquery no `FROM`, a versão no `SELECT` é mais rápida de escrever e tem zero risco de duplicar linhas!).*
+
+---
+
+### 🧩 4. Os 3 Padrões de Subquery no `FROM` que Aparecem na Prova
+
+Quando você **precisar** usar Subquery no `FROM` (ou porque o enunciado exigiu, ou porque você está numa Procedure como na `ATV_GRUPO.sql`, ou porque precisa trazer várias colunas resumidas de uma vez), ela sempre seguirá um destes **3 desenhos**:
+
+#### Desenho 1: `FROM TABELA_MAE LEFT JOIN (Subquery)`
+* **Quando usar:** Você quer listar **todos** os usuários (ou todas as metas/exercícios) e colar ao lado um resumo que veio de uma tabela filha (`TRE_SERIE` ou `TRE_RECORD`).
+* **Cuidado único:** Sempre usar `LEFT JOIN` (para não sumir com quem tem zero) e colocar `NVL(res.COLUNA, 0)` lá no `SELECT` de fora!
+
+#### Desenho 2: `FROM (Subquery)` Sozinha (Padrão das Procedures do `ATV_GRUPO.sql`!)
+* **Quando usar:** Quando você quer calcular o **maior de uma contagem** (`MAX(COUNT)`) ou o **maior retorno de uma Function** dentro de uma Procedure!
+* **Por que não precisa de `ON` nesse caso?** Porque só existe a subquery no `FROM` (você não está juntando ela com outra tabela):
+  ```sql
+  SELECT MAX(res.QTD_SERIE)
+  INTO v_maior
+  FROM (
+      -- Post-it que conta as séries de cada treino:
+      SELECT ID_TREINO, COUNT(ID_SERIE) AS QTD_SERIE
+      FROM ...
+      GROUP BY ID_TREINO
+  ) res;
+  ```
+
+#### Desenho 3: `FROM (Subquery 1) INNER JOIN (Subquery 2) INNER JOIN (Subquery 3)` (Maior e Menor por Categoria)
+* **Quando usar:** Quando a questão pede na mesma linha o **Grupo Muscular**, o **Nome do Exercício Maior + Maior Carga** e o **Nome do Exercício Menor + Menor Carga**.
+* **Cuidado único:** Nos dois `ON` lá de fora, você **SEMPRE** precisa comparar **2 coisas** com `AND`:
+  1. O valor da carga (`ON maior.CARGA = resumo.MAIOR_CARGA`)
+  2. **E** o crachá do grupo (`AND maior.ID_GRP_MUSCULAR = resumo.ID_GRP_MUSCULAR`)!
+
+---
+
+### 🧭 5. Bússola de 5 Segundos para a Prova ("Qual Subquery eu uso em cada questão?")
+
+Amanhã na prova, quando ler o enunciado, faça estas perguntas:
+
+1. **A questão quer mostrar uma listagem com contagens (`TOTAL_TREINOS`, `TOTAL_METAS`, `MAIOR_CARGA`) ao lado do nome do usuário/exercício/meta?**
+   * 👉 Se não exigir subquery no `FROM`, use **Subquery no `SELECT`**! É uma célula do Excel por coluna, ligada com `WHERE filha.ID = mae.ID`.
+   * 👉 Se exigir subquery no `FROM`, use **`LEFT JOIN (SELECT ID, MAX(...) FROM ... GROUP BY ID) res ON res.ID = mae.ID`**.
+
+2. **A questão quer mostrar apenas O CAMPEÃO ABSOLUTO (ex: *"Qual o nome do usuário e o código do treino que teve a maior duração do banco?"*)?**
+   * 👉 Use **Subquery no `WHERE` com `=`**:
+     `WHERE t.DURACAO_MINUTO = (SELECT MAX(DURACAO_MINUTO) FROM TRE_TREINO)`
+     *(E lembre-se: sem `GROUP BY` na consulta principal!).*
+
+3. **A questão quer mostrar O CAMPEÃO DE UMA MÉDIA OU CONTAGEM (ex: *"Qual usuário tem a maior média geral de carga?"*)?**
+   * 👉 Use **`GROUP BY` na consulta principal + Subquery no `HAVING`**:
+     `GROUP BY u.ID_USUARIO, u.NOME HAVING AVG(s.CARGA) = (SELECT MAX(AVG(s2.CARGA)) FROM ... GROUP BY t2.ID_USUARIO)`
+     *(Lembrete: dentro da subquery do `HAVING`, nunca coloque `ID_USUARIO` no `SELECT`, coloque só o `MAX(AVG(...))`!).*
+
+4. **A questão pede um `DELETE` (apagar quem nunca teve treino/item) ou um `UPDATE` filtrando quem está/não está em outra tabela?**
+   * 👉 Use **Subquery no `WHERE` com `IN` ou `NOT IN`**:
+     `WHERE ID_TREINO NOT IN (SELECT ID_TREINO FROM TRE_ITEM_TREINO WHERE ID_TREINO IS NOT NULL)`
+     *(Com `NOT IN`, nunca esqueça o `WHERE ID IS NOT NULL` lá dentro!).*
+
+5. **A questão pede dois totais de tabelas diferentes que não têm nada a ver uma com a outra em uma linha só (ex: *"Quantos usuários com G e quantos exercícios com S"*)?**
+   * 👉 Use **Duas Subqueries no `SELECT` consultando `FROM DUAL`**!
 
 ---
 ---
