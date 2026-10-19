@@ -1,0 +1,1057 @@
+-- ============================================================================
+-- 🔥 ARSENAL DE PROVA — SISTEMA DE TREINOS (TRE_)
+-- ============================================================================
+-- INSTRUÇÃO: Abra este arquivo no Oracle SQL Developer e aperte F5 (Run Script).
+-- Todos os objetos possuem "/" no final para compilarem de uma vez só!
+--
+-- O QUE TEM AQUI DENTRO:
+--   PARTE 1: 8 VIEWS "SALVA-VIDAS" (JOINs completos + SUM, AVG, MAX, MIN, COUNT)
+--   PARTE 2: 8 FUNCTIONS DIRETAS (Para usar direto no SELECT ou em Procedures)
+--   PARTE 3: 4 TRIOS DE PROCEDURES (Estilo exato do ATV_GRUPO.sql: V1 e V2)
+--   PARTE 4: CRUDs DAS TABELAS QUE FALTAVAM NO ATV_GRUPO (Meta, Record, Treino, Item, Série)
+-- ============================================================================
+
+SET SERVEROUTPUT ON;
+
+-- ============================================================================
+-- PARTE 1: VIEWS "SALVA-VIDAS" (ATALHOS DE JOINS + SOMAS, MÉDIAS, MAX E MIN)
+-- ============================================================================
+-- 💡 DICA DE PROVA:
+-- 1) Se você já rodou este script no seu banco, pode fazer "SELECT * FROM VW_..."
+--    dentro das suas Subqueries, Functions e Procedures!
+-- 2) Se o professor pedir a query aberta na prova, basta copiar o SELECT de dentro
+--    da View correspondente abaixo!
+-- ============================================================================
+
+-- ----------------------------------------------------------------------------
+-- 1.1 VW_TUDO_SERIE_TREINO_EXERCICIO (O "Joinzão" Completo de 6 Tabelas)
+-- Junta: USUARIO -> TREINO -> ITEM_TREINO -> SERIE -> EXERCICIO -> GRUPOMUSCULAR
+-- Já traz o VOLUME_SERIE (CARGA * REPETICOES) calculado linha a linha!
+-- ----------------------------------------------------------------------------
+CREATE OR REPLACE VIEW VW_TUDO_SERIE_TREINO_EXERCICIO AS
+SELECT
+    u.ID_USUARIO,
+    u.COD_USUARIO,
+    u.NOME AS NOME_USUARIO,
+    t.ID_TREINO,
+    t.COD_TREINO,
+    t.DATA_TREINO,
+    NVL(t.DURACAO_MINUTO, 0) AS DURACAO_MINUTO,
+    it.ID_ITEM_TREINO,
+    it.ORDEM AS ORDEM_EXERCICIO,
+    e.ID_EXERCICIO,
+    e.COD_EXERCICIO,
+    e.NOME AS NOME_EXERCICIO,
+    g.ID_GRP_MUSCULAR,
+    g.COD_GRP_MUSCULAR,
+    g.NOME AS NOME_GRUPO_MUSCULAR,
+    s.ID_SERIE,
+    s.COD_SERIE,
+    s.NUMERO_SERIE,
+    s.REPETICOES,
+    s.CARGA AS CARGA_SERIE,
+    (s.CARGA * s.REPETICOES) AS VOLUME_SERIE
+FROM TRE_USUARIO u
+INNER JOIN TRE_TREINO t        ON t.ID_USUARIO      = u.ID_USUARIO
+INNER JOIN TRE_ITEM_TREINO it  ON it.ID_TREINO      = t.ID_TREINO
+INNER JOIN TRE_SERIE s         ON s.ID_ITEM_TREINO  = it.ID_ITEM_TREINO
+INNER JOIN TRE_EXERCICIO e     ON e.ID_EXERCICIO    = it.ID_EXERCICIO
+INNER JOIN TRE_GRUPOMUSCULAR g ON g.ID_GRP_MUSCULAR = e.ID_GRP_MUSCULAR;
+/
+
+-- ----------------------------------------------------------------------------
+-- 1.2 VW_ESTATISTICAS_USUARIO (Raio-X Geral do Usuário sem Produto Cartesiano)
+-- Traz SOMA, MÉDIA, MAX, MIN e COUNT de Treinos, Séries, Metas e Recordes por Usuário!
+-- Usa Subqueries no SELECT para nunca duplicar linhas!
+-- ----------------------------------------------------------------------------
+CREATE OR REPLACE VIEW VW_ESTATISTICAS_USUARIO AS
+SELECT
+    u.ID_USUARIO,
+    u.COD_USUARIO,
+    u.NOME AS NOME_USUARIO,
+    -- Métricas de Treino
+    (SELECT COUNT(t.ID_TREINO)
+     FROM TRE_TREINO t
+     WHERE t.ID_USUARIO = u.ID_USUARIO) AS QTD_TREINOS,
+    NVL((SELECT SUM(t.DURACAO_MINUTO)
+         FROM TRE_TREINO t
+         WHERE t.ID_USUARIO = u.ID_USUARIO), 0) AS SOMA_MINUTOS_TREINO,
+    NVL((SELECT ROUND(AVG(t.DURACAO_MINUTO), 2)
+         FROM TRE_TREINO t
+         WHERE t.ID_USUARIO = u.ID_USUARIO), 0) AS MEDIA_MINUTOS_TREINO,
+    -- Métricas de Série (Carga e Volume = Carga * Repetições)
+    (SELECT COUNT(s.ID_SERIE)
+     FROM TRE_TREINO t
+     INNER JOIN TRE_ITEM_TREINO it ON it.ID_TREINO = t.ID_TREINO
+     INNER JOIN TRE_SERIE s        ON s.ID_ITEM_TREINO = it.ID_ITEM_TREINO
+     WHERE t.ID_USUARIO = u.ID_USUARIO) AS QTD_SERIES_TOTAL,
+    NVL((SELECT SUM(s.CARGA * s.REPETICOES)
+         FROM TRE_TREINO t
+         INNER JOIN TRE_ITEM_TREINO it ON it.ID_TREINO = t.ID_TREINO
+         INNER JOIN TRE_SERIE s        ON s.ID_ITEM_TREINO = it.ID_ITEM_TREINO
+         WHERE t.ID_USUARIO = u.ID_USUARIO), 0) AS SOMA_VOLUME_TOTAL,
+    NVL((SELECT ROUND(AVG(s.CARGA), 2)
+         FROM TRE_TREINO t
+         INNER JOIN TRE_ITEM_TREINO it ON it.ID_TREINO = t.ID_TREINO
+         INNER JOIN TRE_SERIE s        ON s.ID_ITEM_TREINO = it.ID_ITEM_TREINO
+         WHERE t.ID_USUARIO = u.ID_USUARIO), 0) AS MEDIA_CARGA_SERIES,
+    NVL((SELECT MAX(s.CARGA)
+         FROM TRE_TREINO t
+         INNER JOIN TRE_ITEM_TREINO it ON it.ID_TREINO = t.ID_TREINO
+         INNER JOIN TRE_SERIE s        ON s.ID_ITEM_TREINO = it.ID_ITEM_TREINO
+         WHERE t.ID_USUARIO = u.ID_USUARIO), 0) AS MAX_CARGA_SERIE,
+    NVL((SELECT MIN(s.CARGA)
+         FROM TRE_TREINO t
+         INNER JOIN TRE_ITEM_TREINO it ON it.ID_TREINO = t.ID_TREINO
+         INNER JOIN TRE_SERIE s        ON s.ID_ITEM_TREINO = it.ID_ITEM_TREINO
+         WHERE t.ID_USUARIO = u.ID_USUARIO), 0) AS MIN_CARGA_SERIE,
+    -- Métricas de Metas
+    (SELECT COUNT(m.ID_META)
+     FROM TRE_META m
+     WHERE m.ID_USUARIO = u.ID_USUARIO) AS QTD_METAS_TOTAL,
+    (SELECT COUNT(m.ID_META)
+     FROM TRE_META m
+     WHERE m.ID_USUARIO = u.ID_USUARIO AND m.STATUS = 'ATIVA') AS QTD_METAS_ATIVAS,
+    (SELECT COUNT(m.ID_META)
+     FROM TRE_META m
+     WHERE m.ID_USUARIO = u.ID_USUARIO AND m.STATUS = 'CONCLUIDA') AS QTD_METAS_CONCLUIDAS,
+    NVL((SELECT MAX(m.CARGA_ALVO)
+         FROM TRE_META m
+         WHERE m.ID_USUARIO = u.ID_USUARIO), 0) AS MAX_CARGA_META,
+    NVL((SELECT MIN(m.CARGA_ALVO)
+         FROM TRE_META m
+         WHERE m.ID_USUARIO = u.ID_USUARIO), 0) AS MIN_CARGA_META,
+    -- Métricas de Recordes
+    (SELECT COUNT(r.ID_RECORD)
+     FROM TRE_RECORD r
+     WHERE r.ID_USUARIO = u.ID_USUARIO) AS QTD_RECORDES_BATIDOS,
+    NVL((SELECT MAX(r.CARGA_RECORD)
+         FROM TRE_RECORD r
+         WHERE r.ID_USUARIO = u.ID_USUARIO), 0) AS MAX_CARGA_RECORD,
+    NVL((SELECT MIN(r.CARGA_RECORD)
+         FROM TRE_RECORD r
+         WHERE r.ID_USUARIO = u.ID_USUARIO), 0) AS MIN_CARGA_RECORD,
+    NVL((SELECT ROUND(AVG(r.CARGA_RECORD), 2)
+         FROM TRE_RECORD r
+         WHERE r.ID_USUARIO = u.ID_USUARIO), 0) AS MEDIA_CARGA_RECORD
+FROM TRE_USUARIO u;
+/
+
+-- ----------------------------------------------------------------------------
+-- 1.3 VW_RESUMO_POR_TREINO (Somas, Médias, Max e Min dentro de cada Treino)
+-- Ideal para questões de: "Qual treino teve mais séries / maior carga / maior volume?"
+-- ----------------------------------------------------------------------------
+CREATE OR REPLACE VIEW VW_RESUMO_POR_TREINO AS
+SELECT
+    t.ID_TREINO,
+    t.COD_TREINO,
+    t.DATA_TREINO,
+    NVL(t.DURACAO_MINUTO, 0) AS DURACAO_MINUTO,
+    u.ID_USUARIO,
+    u.COD_USUARIO,
+    u.NOME AS NOME_USUARIO,
+    COUNT(DISTINCT it.ID_ITEM_TREINO) AS QTD_EXERCICIOS_NO_TREINO,
+    COUNT(s.ID_SERIE) AS QTD_SERIES_NO_TREINO,
+    NVL(SUM(s.REPETICOES), 0) AS SOMA_REPETICOES,
+    NVL(SUM(s.CARGA * s.REPETICOES), 0) AS SOMA_VOLUME_TREINO,
+    NVL(ROUND(AVG(s.CARGA), 2), 0) AS MEDIA_CARGA_TREINO,
+    NVL(MAX(s.CARGA), 0) AS MAX_CARGA_TREINO,
+    NVL(MIN(s.CARGA), 0) AS MIN_CARGA_TREINO
+FROM TRE_TREINO t
+INNER JOIN TRE_USUARIO u       ON u.ID_USUARIO     = t.ID_USUARIO
+LEFT JOIN TRE_ITEM_TREINO it   ON it.ID_TREINO     = t.ID_TREINO
+LEFT JOIN TRE_SERIE s          ON s.ID_ITEM_TREINO = it.ID_ITEM_TREINO
+GROUP BY
+    t.ID_TREINO,
+    t.COD_TREINO,
+    t.DATA_TREINO,
+    t.DURACAO_MINUTO,
+    u.ID_USUARIO,
+    u.COD_USUARIO,
+    u.NOME;
+/
+
+-- ----------------------------------------------------------------------------
+-- 1.4 VW_RESUMO_POR_EXERCICIO (Somas, Médias, Max e Min por Exercício)
+-- Ideal para: "Qual exercício tem a maior média de carga / mais séries / maior recorde?"
+-- ----------------------------------------------------------------------------
+CREATE OR REPLACE VIEW VW_RESUMO_POR_EXERCICIO AS
+SELECT
+    e.ID_EXERCICIO,
+    e.COD_EXERCICIO,
+    e.NOME AS NOME_EXERCICIO,
+    CASE
+        WHEN e.ID_USUARIO IS NULL THEN 'GLOBAL'
+        ELSE 'PERSONALIZADO'
+    END AS TIPO_EXERCICIO,
+    g.ID_GRP_MUSCULAR,
+    g.COD_GRP_MUSCULAR,
+    g.NOME AS NOME_GRUPO_MUSCULAR,
+    -- Métricas em Séries (via Subquery no SELECT para não cruzar com Record/Meta)
+    (SELECT COUNT(s.ID_SERIE)
+     FROM TRE_ITEM_TREINO it
+     INNER JOIN TRE_SERIE s ON s.ID_ITEM_TREINO = it.ID_ITEM_TREINO
+     WHERE it.ID_EXERCICIO = e.ID_EXERCICIO) AS QTD_SERIES_EXECUTADAS,
+    NVL((SELECT SUM(s.CARGA * s.REPETICOES)
+         FROM TRE_ITEM_TREINO it
+         INNER JOIN TRE_SERIE s ON s.ID_ITEM_TREINO = it.ID_ITEM_TREINO
+         WHERE it.ID_EXERCICIO = e.ID_EXERCICIO), 0) AS SOMA_VOLUME_EXERCICIO,
+    NVL((SELECT ROUND(AVG(s.CARGA), 2)
+         FROM TRE_ITEM_TREINO it
+         INNER JOIN TRE_SERIE s ON s.ID_ITEM_TREINO = it.ID_ITEM_TREINO
+         WHERE it.ID_EXERCICIO = e.ID_EXERCICIO), 0) AS MEDIA_CARGA_SERIE,
+    NVL((SELECT MAX(s.CARGA)
+         FROM TRE_ITEM_TREINO it
+         INNER JOIN TRE_SERIE s ON s.ID_ITEM_TREINO = it.ID_ITEM_TREINO
+         WHERE it.ID_EXERCICIO = e.ID_EXERCICIO), 0) AS MAX_CARGA_SERIE,
+    NVL((SELECT MIN(s.CARGA)
+         FROM TRE_ITEM_TREINO it
+         INNER JOIN TRE_SERIE s ON s.ID_ITEM_TREINO = it.ID_ITEM_TREINO
+         WHERE it.ID_EXERCICIO = e.ID_EXERCICIO), 0) AS MIN_CARGA_SERIE,
+    -- Métricas em Recordes
+    (SELECT COUNT(r.ID_RECORD)
+     FROM TRE_RECORD r
+     WHERE r.ID_EXERCICIO = e.ID_EXERCICIO) AS QTD_RECORDES,
+    NVL((SELECT MAX(r.CARGA_RECORD)
+         FROM TRE_RECORD r
+         WHERE r.ID_EXERCICIO = e.ID_EXERCICIO), 0) AS MAX_CARGA_RECORD,
+    NVL((SELECT MIN(r.CARGA_RECORD)
+         FROM TRE_RECORD r
+         WHERE r.ID_EXERCICIO = e.ID_EXERCICIO), 0) AS MIN_CARGA_RECORD,
+    NVL((SELECT ROUND(AVG(r.CARGA_RECORD), 2)
+         FROM TRE_RECORD r
+         WHERE r.ID_EXERCICIO = e.ID_EXERCICIO), 0) AS MEDIA_CARGA_RECORD,
+    -- Métricas em Metas
+    (SELECT COUNT(m.ID_META)
+     FROM TRE_META m
+     WHERE m.ID_EXERCICIO = e.ID_EXERCICIO) AS QTD_METAS
+FROM TRE_EXERCICIO e
+INNER JOIN TRE_GRUPOMUSCULAR g ON g.ID_GRP_MUSCULAR = e.ID_GRP_MUSCULAR;
+/
+
+-- ----------------------------------------------------------------------------
+-- 1.5 VW_RESUMO_POR_GRUPO_MUSCULAR (Somas, Médias, Max e Min por Grupo Muscular)
+-- ----------------------------------------------------------------------------
+CREATE OR REPLACE VIEW VW_RESUMO_POR_GRUPO_MUSCULAR AS
+SELECT
+    g.ID_GRP_MUSCULAR,
+    g.COD_GRP_MUSCULAR,
+    g.NOME AS NOME_GRUPO_MUSCULAR,
+    (SELECT COUNT(e.ID_EXERCICIO)
+     FROM TRE_EXERCICIO e
+     WHERE e.ID_GRP_MUSCULAR = g.ID_GRP_MUSCULAR) AS QTD_EXERCICIOS_CADASTRADOS,
+    (SELECT COUNT(s.ID_SERIE)
+     FROM TRE_EXERCICIO e
+     INNER JOIN TRE_ITEM_TREINO it ON it.ID_EXERCICIO = e.ID_EXERCICIO
+     INNER JOIN TRE_SERIE s        ON s.ID_ITEM_TREINO = it.ID_ITEM_TREINO
+     WHERE e.ID_GRP_MUSCULAR = g.ID_GRP_MUSCULAR) AS QTD_SERIES_GRUPO,
+    NVL((SELECT SUM(s.CARGA * s.REPETICOES)
+         FROM TRE_EXERCICIO e
+         INNER JOIN TRE_ITEM_TREINO it ON it.ID_EXERCICIO = e.ID_EXERCICIO
+         INNER JOIN TRE_SERIE s        ON s.ID_ITEM_TREINO = it.ID_ITEM_TREINO
+         WHERE e.ID_GRP_MUSCULAR = g.ID_GRP_MUSCULAR), 0) AS SOMA_VOLUME_GRUPO,
+    NVL((SELECT ROUND(AVG(s.CARGA), 2)
+         FROM TRE_EXERCICIO e
+         INNER JOIN TRE_ITEM_TREINO it ON it.ID_EXERCICIO = e.ID_EXERCICIO
+         INNER JOIN TRE_SERIE s        ON s.ID_ITEM_TREINO = it.ID_ITEM_TREINO
+         WHERE e.ID_GRP_MUSCULAR = g.ID_GRP_MUSCULAR), 0) AS MEDIA_CARGA_GRUPO,
+    NVL((SELECT MAX(r.CARGA_RECORD)
+         FROM TRE_EXERCICIO e
+         INNER JOIN TRE_RECORD r ON r.ID_EXERCICIO = e.ID_EXERCICIO
+         WHERE e.ID_GRP_MUSCULAR = g.ID_GRP_MUSCULAR), 0) AS MAX_RECORD_GRUPO,
+    NVL((SELECT MIN(r.CARGA_RECORD)
+         FROM TRE_EXERCICIO e
+         INNER JOIN TRE_RECORD r ON r.ID_EXERCICIO = e.ID_EXERCICIO
+         WHERE e.ID_GRP_MUSCULAR = g.ID_GRP_MUSCULAR), 0) AS MIN_RECORD_GRUPO
+FROM TRE_GRUPOMUSCULAR g;
+/
+
+-- ----------------------------------------------------------------------------
+-- 1.6 VW_META_VS_RECORDE (Relacionamento Indireto Temporal entre Meta e Recorde)
+-- Cruza cada Meta com os Recordes do mesmo Usuário e Exercício dentro da janela
+-- de tempo da meta (DATA_CRIACAO até DATA_CONCLUSAO ou SYSDATE)
+-- ----------------------------------------------------------------------------
+CREATE OR REPLACE VIEW VW_META_VS_RECORDE AS
+SELECT
+    m.ID_META,
+    m.COD_META,
+    u.ID_USUARIO,
+    u.COD_USUARIO,
+    u.NOME AS NOME_USUARIO,
+    e.ID_EXERCICIO,
+    e.COD_EXERCICIO,
+    e.NOME AS NOME_EXERCICIO,
+    m.CARGA_ALVO,
+    m.DATA_CRIACAO,
+    m.DATA_ALVO,
+    m.DATA_CONCLUSAO,
+    m.STATUS AS STATUS_META,
+    -- Maior recorde batido na janela temporal da meta
+    NVL((SELECT MAX(r.CARGA_RECORD)
+         FROM TRE_RECORD r
+         WHERE r.ID_USUARIO   = m.ID_USUARIO
+           AND r.ID_EXERCICIO = m.ID_EXERCICIO
+           AND r.DATA_RECORD BETWEEN m.DATA_CRIACAO AND NVL(m.DATA_CONCLUSAO, SYSDATE)), 0) AS MAIOR_RECORD_NO_PERIODO,
+    -- Maior recorde geral do usuário naquele exercício (em qualquer data)
+    NVL((SELECT MAX(r.CARGA_RECORD)
+         FROM TRE_RECORD r
+         WHERE r.ID_USUARIO   = m.ID_USUARIO
+           AND r.ID_EXERCICIO = m.ID_EXERCICIO), 0) AS MAIOR_RECORD_GERAL,
+    -- Percentual atingido da meta (protegido contra divisão por zero com NULLIF)
+    ROUND(
+        (NVL((SELECT MAX(r.CARGA_RECORD)
+              FROM TRE_RECORD r
+              WHERE r.ID_USUARIO   = m.ID_USUARIO
+                AND r.ID_EXERCICIO = m.ID_EXERCICIO
+                AND r.DATA_RECORD BETWEEN m.DATA_CRIACAO AND NVL(m.DATA_CONCLUSAO, SYSDATE)), 0)
+         / NULLIF(m.CARGA_ALVO, 0)) * 100
+    , 2) AS PERCENTUAL_CONCLUIDO
+FROM TRE_META m
+INNER JOIN TRE_USUARIO u   ON u.ID_USUARIO   = m.ID_USUARIO
+INNER JOIN TRE_EXERCICIO e ON e.ID_EXERCICIO = m.ID_EXERCICIO;
+/
+
+-- ----------------------------------------------------------------------------
+-- 1.7 VW_RECORDE_COM_SERIE_DO_TREINO (Relacionamento Indireto Recorde <-> Série)
+-- Localiza qual treino e série geraram aquele recorde (mesmo usuário, mesmo dia,
+-- mesmo exercício e mesma carga)
+-- ----------------------------------------------------------------------------
+CREATE OR REPLACE VIEW VW_RECORDE_COM_SERIE_DO_TREINO AS
+SELECT
+    r.ID_RECORD,
+    r.COD_RECORD,
+    u.ID_USUARIO,
+    u.NOME AS NOME_USUARIO,
+    e.ID_EXERCICIO,
+    e.NOME AS NOME_EXERCICIO,
+    r.CARGA_RECORD,
+    r.DATA_RECORD,
+    t.ID_TREINO,
+    t.COD_TREINO,
+    s.ID_SERIE,
+    s.COD_SERIE,
+    s.REPETICOES AS REPETICOES_NO_RECORDE
+FROM TRE_RECORD r
+INNER JOIN TRE_USUARIO u      ON u.ID_USUARIO      = r.ID_USUARIO
+INNER JOIN TRE_EXERCICIO e    ON e.ID_EXERCICIO    = r.ID_EXERCICIO
+LEFT JOIN TRE_TREINO t        ON t.ID_USUARIO      = r.ID_USUARIO
+                             AND TRUNC(t.DATA_TREINO) = TRUNC(r.DATA_RECORD)
+LEFT JOIN TRE_ITEM_TREINO it  ON it.ID_TREINO      = t.ID_TREINO
+                             AND it.ID_EXERCICIO   = r.ID_EXERCICIO
+LEFT JOIN TRE_SERIE s         ON s.ID_ITEM_TREINO  = it.ID_ITEM_TREINO
+                             AND s.CARGA           = r.CARGA_RECORD;
+/
+
+-- ----------------------------------------------------------------------------
+-- 1.8 VW_MAIOR_E_MENOR_POR_GRUPO (Molde Clássico do Professor: Max e Min Lado a Lado)
+-- Mostra cada Grupo Muscular com o Exercício/Aluno Dona da MAIOR Carga e da MENOR Carga
+-- ----------------------------------------------------------------------------
+CREATE OR REPLACE VIEW VW_MAIOR_E_MENOR_POR_GRUPO AS
+SELECT
+    res.NOME_GRUPO,
+    res.MAIOR_CARGA,
+    dono_max.NOME_EXERCICIO AS EXERCICIO_MAIOR_CARGA,
+    dono_max.NOME_USUARIO   AS ALUNO_MAIOR_CARGA,
+    res.MENOR_CARGA,
+    dono_min.NOME_EXERCICIO AS EXERCICIO_MENOR_CARGA,
+    dono_min.NOME_USUARIO   AS ALUNO_MENOR_CARGA
+FROM (
+    -- Subquery 1: Acha o MAX e o MIN de recorde por Grupo Muscular
+    SELECT
+        g.ID_GRP_MUSCULAR,
+        g.NOME AS NOME_GRUPO,
+        MAX(r.CARGA_RECORD) AS MAIOR_CARGA,
+        MIN(r.CARGA_RECORD) AS MENOR_CARGA
+    FROM TRE_GRUPOMUSCULAR g
+    INNER JOIN TRE_EXERCICIO e ON e.ID_GRP_MUSCULAR = g.ID_GRP_MUSCULAR
+    INNER JOIN TRE_RECORD r    ON r.ID_EXERCICIO    = e.ID_EXERCICIO
+    GROUP BY g.ID_GRP_MUSCULAR, g.NOME
+) res
+INNER JOIN (
+    -- Subquery 2: Quem é o dono da MAIOR carga?
+    SELECT
+        e.ID_GRP_MUSCULAR,
+        e.NOME AS NOME_EXERCICIO,
+        u.NOME AS NOME_USUARIO,
+        r.CARGA_RECORD
+    FROM TRE_RECORD r
+    INNER JOIN TRE_EXERCICIO e ON e.ID_EXERCICIO = r.ID_EXERCICIO
+    INNER JOIN TRE_USUARIO u   ON u.ID_USUARIO   = r.ID_USUARIO
+) dono_max ON dono_max.ID_GRP_MUSCULAR = res.ID_GRP_MUSCULAR
+          AND dono_max.CARGA_RECORD    = res.MAIOR_CARGA
+INNER JOIN (
+    -- Subquery 3: Quem é o dono da MENOR carga?
+    SELECT
+        e.ID_GRP_MUSCULAR,
+        e.NOME AS NOME_EXERCICIO,
+        u.NOME AS NOME_USUARIO,
+        r.CARGA_RECORD
+    FROM TRE_RECORD r
+    INNER JOIN TRE_EXERCICIO e ON e.ID_EXERCICIO = r.ID_EXERCICIO
+    INNER JOIN TRE_USUARIO u   ON u.ID_USUARIO   = r.ID_USUARIO
+) dono_min ON dono_min.ID_GRP_MUSCULAR = res.ID_GRP_MUSCULAR
+          AND dono_min.CARGA_RECORD    = res.MENOR_CARGA;
+/
+
+
+-- ============================================================================
+-- PARTE 2: FUNCTIONS CORINGAS (CHAMÁVEIS DIRETO NO SELECT, SEM BLOCO ANÔNIMO!)
+-- ============================================================================
+-- Todas seguem o padrão do ATV_GRUPO.sql: recebem P_COD_... VARCHAR2 e retornam NUMBER.
+-- Você pode testar qualquer uma rodando:
+--   SELECT NOME, FN_VOLUME_USUARIO(COD_USUARIO) FROM TRE_USUARIO;
+-- ============================================================================
+
+-- 2.1 Function: Quantidade Total de Séries de um Usuário (por COD_USUARIO)
+CREATE OR REPLACE FUNCTION FN_QTD_SERIES_USUARIO(
+    P_COD_USUARIO VARCHAR2
+) RETURN NUMBER IS
+    V_ID_USUARIO NUMBER;
+    V_QTD_SERIES NUMBER := 0;
+BEGIN
+    SELECT ID_USUARIO INTO V_ID_USUARIO
+    FROM TRE_USUARIO
+    WHERE COD_USUARIO = P_COD_USUARIO;
+
+    SELECT COUNT(s.ID_SERIE)
+    INTO V_QTD_SERIES
+    FROM TRE_TREINO t
+    INNER JOIN TRE_ITEM_TREINO it ON it.ID_TREINO     = t.ID_TREINO
+    INNER JOIN TRE_SERIE s        ON s.ID_ITEM_TREINO = it.ID_ITEM_TREINO
+    WHERE t.ID_USUARIO = V_ID_USUARIO;
+
+    RETURN NVL(V_QTD_SERIES, 0);
+END;
+/
+
+-- 2.2 Function: Volume Total (Soma de CARGA * REPETICOES) de um Usuário (por COD_USUARIO)
+CREATE OR REPLACE FUNCTION FN_VOLUME_USUARIO(
+    P_COD_USUARIO VARCHAR2
+) RETURN NUMBER IS
+    V_ID_USUARIO NUMBER;
+    V_VOLUME     NUMBER := 0;
+BEGIN
+    SELECT ID_USUARIO INTO V_ID_USUARIO
+    FROM TRE_USUARIO
+    WHERE COD_USUARIO = P_COD_USUARIO;
+
+    SELECT NVL(SUM(s.CARGA * s.REPETICOES), 0)
+    INTO V_VOLUME
+    FROM TRE_TREINO t
+    INNER JOIN TRE_ITEM_TREINO it ON it.ID_TREINO     = t.ID_TREINO
+    INNER JOIN TRE_SERIE s        ON s.ID_ITEM_TREINO = it.ID_ITEM_TREINO
+    WHERE t.ID_USUARIO = V_ID_USUARIO;
+
+    RETURN V_VOLUME;
+END;
+/
+
+-- 2.3 Function: Maior Carga de Recorde de um Usuário (por COD_USUARIO)
+CREATE OR REPLACE FUNCTION FN_MAX_RECORD_USUARIO(
+    P_COD_USUARIO VARCHAR2
+) RETURN NUMBER IS
+    V_ID_USUARIO NUMBER;
+    V_MAX_CARGA  NUMBER := 0;
+BEGIN
+    SELECT ID_USUARIO INTO V_ID_USUARIO
+    FROM TRE_USUARIO
+    WHERE COD_USUARIO = P_COD_USUARIO;
+
+    SELECT NVL(MAX(r.CARGA_RECORD), 0)
+    INTO V_MAX_CARGA
+    FROM TRE_RECORD r
+    WHERE r.ID_USUARIO = V_ID_USUARIO;
+
+    RETURN V_MAX_CARGA;
+END;
+/
+
+-- 2.4 Function: Quantidade de Recordes de um Usuário (por COD_USUARIO)
+CREATE OR REPLACE FUNCTION FN_QTD_RECORDES_USUARIO(
+    P_COD_USUARIO VARCHAR2
+) RETURN NUMBER IS
+    V_ID_USUARIO NUMBER;
+    V_QTD        NUMBER := 0;
+BEGIN
+    SELECT ID_USUARIO INTO V_ID_USUARIO
+    FROM TRE_USUARIO
+    WHERE COD_USUARIO = P_COD_USUARIO;
+
+    SELECT COUNT(r.ID_RECORD)
+    INTO V_QTD
+    FROM TRE_RECORD r
+    WHERE r.ID_USUARIO = V_ID_USUARIO;
+
+    RETURN NVL(V_QTD, 0);
+END;
+/
+
+-- 2.5 Function: Quantidade de Metas Concluídas de um Usuário (por COD_USUARIO)
+CREATE OR REPLACE FUNCTION FN_QTD_METAS_CONCLUIDAS(
+    P_COD_USUARIO VARCHAR2
+) RETURN NUMBER IS
+    V_ID_USUARIO NUMBER;
+    V_QTD        NUMBER := 0;
+BEGIN
+    SELECT ID_USUARIO INTO V_ID_USUARIO
+    FROM TRE_USUARIO
+    WHERE COD_USUARIO = P_COD_USUARIO;
+
+    SELECT COUNT(m.ID_META)
+    INTO V_QTD
+    FROM TRE_META m
+    WHERE m.ID_USUARIO = V_ID_USUARIO
+      AND m.STATUS     = 'CONCLUIDA';
+
+    RETURN NVL(V_QTD, 0);
+END;
+/
+
+-- 2.6 Function: Quantidade de Séries Executadas de um Exercício (por COD_EXERCICIO)
+CREATE OR REPLACE FUNCTION FN_QTD_SERIES_EXERCICIO(
+    P_COD_EXERCICIO VARCHAR2
+) RETURN NUMBER IS
+    V_ID_EXERCICIO NUMBER;
+    V_QTD          NUMBER := 0;
+BEGIN
+    SELECT ID_EXERCICIO INTO V_ID_EXERCICIO
+    FROM TRE_EXERCICIO
+    WHERE COD_EXERCICIO = P_COD_EXERCICIO;
+
+    SELECT COUNT(s.ID_SERIE)
+    INTO V_QTD
+    FROM TRE_ITEM_TREINO it
+    INNER JOIN TRE_SERIE s ON s.ID_ITEM_TREINO = it.ID_ITEM_TREINO
+    WHERE it.ID_EXERCICIO = V_ID_EXERCICIO;
+
+    RETURN NVL(V_QTD, 0);
+END;
+/
+
+-- 2.7 Function: Média de Carga nas Séries de um Exercício (por COD_EXERCICIO)
+CREATE OR REPLACE FUNCTION FN_MEDIA_CARGA_EXERCICIO(
+    P_COD_EXERCICIO VARCHAR2
+) RETURN NUMBER IS
+    V_ID_EXERCICIO NUMBER;
+    V_MEDIA        NUMBER := 0;
+BEGIN
+    SELECT ID_EXERCICIO INTO V_ID_EXERCICIO
+    FROM TRE_EXERCICIO
+    WHERE COD_EXERCICIO = P_COD_EXERCICIO;
+
+    SELECT NVL(ROUND(AVG(s.CARGA), 2), 0)
+    INTO V_MEDIA
+    FROM TRE_ITEM_TREINO it
+    INNER JOIN TRE_SERIE s ON s.ID_ITEM_TREINO = it.ID_ITEM_TREINO
+    WHERE it.ID_EXERCICIO = V_ID_EXERCICIO;
+
+    RETURN V_MEDIA;
+END;
+/
+
+-- 2.8 Function: Quantidade Total de Séries de um Grupo Muscular (por COD_GRP_MUSCULAR)
+CREATE OR REPLACE FUNCTION FN_QTD_SERIES_GRUPO(
+    P_COD_GRP VARCHAR2
+) RETURN NUMBER IS
+    V_ID_GRP NUMBER;
+    V_QTD    NUMBER := 0;
+BEGIN
+    SELECT ID_GRP_MUSCULAR INTO V_ID_GRP
+    FROM TRE_GRUPOMUSCULAR
+    WHERE COD_GRP_MUSCULAR = P_COD_GRP;
+
+    SELECT COUNT(s.ID_SERIE)
+    INTO V_QTD
+    FROM TRE_EXERCICIO e
+    INNER JOIN TRE_ITEM_TREINO it ON it.ID_EXERCICIO   = e.ID_EXERCICIO
+    INNER JOIN TRE_SERIE s        ON s.ID_ITEM_TREINO = it.ID_ITEM_TREINO
+    WHERE e.ID_GRP_MUSCULAR = V_ID_GRP;
+
+    RETURN NVL(V_QTD, 0);
+END;
+/
+
+
+-- ============================================================================
+-- PARTE 3: OS TRIOS DE PROCEDURES DO PROFESSOR (ESTILO EXATO DO ATV_GRUPO.sql)
+-- ============================================================================
+-- Nenhuma recebe parâmetros chatos! Basta rodar:
+--   EXEC PRC_USUARIO_MAX_VOLUME_V1;
+--   EXEC PRC_USUARIO_MAX_VOLUME_V2;
+-- ============================================================================
+
+-- ----------------------------------------------------------------------------
+-- TRIO A: USUÁRIO COM MAIOR VOLUME TOTAL (CARGA * REPETICOES)
+-- ----------------------------------------------------------------------------
+-- Versão 1 (Com Subquery no FROM + GROUP BY + Desempate MIN(ID_USUARIO))
+CREATE OR REPLACE PROCEDURE PRC_USUARIO_MAX_VOLUME_V1 IS
+    V_MAIOR_VOLUME NUMBER;
+    V_ID_USUARIO   NUMBER;
+BEGIN
+    SELECT MAX(VOLUME_TOTAL)
+    INTO V_MAIOR_VOLUME
+    FROM (
+        SELECT
+            u.ID_USUARIO,
+            NVL(SUM(s.CARGA * s.REPETICOES), 0) AS VOLUME_TOTAL
+        FROM TRE_USUARIO u
+        LEFT JOIN TRE_TREINO t       ON t.ID_USUARIO      = u.ID_USUARIO
+        LEFT JOIN TRE_ITEM_TREINO it ON it.ID_TREINO      = t.ID_TREINO
+        LEFT JOIN TRE_SERIE s        ON s.ID_ITEM_TREINO  = it.ID_ITEM_TREINO
+        GROUP BY u.ID_USUARIO
+    );
+
+    SELECT MIN(ID_USUARIO)
+    INTO V_ID_USUARIO
+    FROM (
+        SELECT
+            u.ID_USUARIO,
+            NVL(SUM(s.CARGA * s.REPETICOES), 0) AS VOLUME_TOTAL
+        FROM TRE_USUARIO u
+        LEFT JOIN TRE_TREINO t       ON t.ID_USUARIO      = u.ID_USUARIO
+        LEFT JOIN TRE_ITEM_TREINO it ON it.ID_TREINO      = t.ID_TREINO
+        LEFT JOIN TRE_SERIE s        ON s.ID_ITEM_TREINO  = it.ID_ITEM_TREINO
+        GROUP BY u.ID_USUARIO
+    )
+    WHERE VOLUME_TOTAL = V_MAIOR_VOLUME;
+
+    DBMS_OUTPUT.PUT_LINE(' | ID do Usuário: ' || V_ID_USUARIO || ' | Maior Volume Total: ' || V_MAIOR_VOLUME);
+END;
+/
+
+-- Versão 2 (Usando a Function FN_VOLUME_USUARIO dentro da Subquery do FROM)
+CREATE OR REPLACE PROCEDURE PRC_USUARIO_MAX_VOLUME_V2 IS
+    V_MAIOR_VOLUME NUMBER;
+    V_ID_USUARIO   NUMBER;
+BEGIN
+    SELECT MAX(VOLUME_TOTAL)
+    INTO V_MAIOR_VOLUME
+    FROM (
+        SELECT FN_VOLUME_USUARIO(COD_USUARIO) AS VOLUME_TOTAL
+        FROM TRE_USUARIO
+    );
+
+    SELECT MIN(ID_USUARIO)
+    INTO V_ID_USUARIO
+    FROM (
+        SELECT
+            ID_USUARIO,
+            FN_VOLUME_USUARIO(COD_USUARIO) AS VOLUME_TOTAL
+        FROM TRE_USUARIO
+    )
+    WHERE VOLUME_TOTAL = V_MAIOR_VOLUME;
+
+    DBMS_OUTPUT.PUT_LINE(' | ID do Usuário: ' || V_ID_USUARIO || ' | Maior Volume Total: ' || V_MAIOR_VOLUME);
+END;
+/
+
+-- ----------------------------------------------------------------------------
+-- TRIO B: EXERCÍCIO MAIS EXECUTADO EM SÉRIES
+-- ----------------------------------------------------------------------------
+-- Versão 1 (Com Subquery no FROM + GROUP BY + Desempate MIN(ID_EXERCICIO))
+CREATE OR REPLACE PROCEDURE PRC_EXERCICIO_MAX_SERIE_V1 IS
+    V_MAIOR_QTD    NUMBER;
+    V_ID_EXERCICIO NUMBER;
+BEGIN
+    SELECT MAX(QTD_SERIE)
+    INTO V_MAIOR_QTD
+    FROM (
+        SELECT
+            e.ID_EXERCICIO,
+            COUNT(s.ID_SERIE) AS QTD_SERIE
+        FROM TRE_EXERCICIO e
+        LEFT JOIN TRE_ITEM_TREINO it ON it.ID_EXERCICIO  = e.ID_EXERCICIO
+        LEFT JOIN TRE_SERIE s        ON s.ID_ITEM_TREINO = it.ID_ITEM_TREINO
+        GROUP BY e.ID_EXERCICIO
+    );
+
+    SELECT MIN(ID_EXERCICIO)
+    INTO V_ID_EXERCICIO
+    FROM (
+        SELECT
+            e.ID_EXERCICIO,
+            COUNT(s.ID_SERIE) AS QTD_SERIE
+        FROM TRE_EXERCICIO e
+        LEFT JOIN TRE_ITEM_TREINO it ON it.ID_EXERCICIO  = e.ID_EXERCICIO
+        LEFT JOIN TRE_SERIE s        ON s.ID_ITEM_TREINO = it.ID_ITEM_TREINO
+        GROUP BY e.ID_EXERCICIO
+    )
+    WHERE QTD_SERIE = V_MAIOR_QTD;
+
+    DBMS_OUTPUT.PUT_LINE(' | ID do Exercício: ' || V_ID_EXERCICIO || ' | Maior Qtd de Séries: ' || V_MAIOR_QTD);
+END;
+/
+
+-- Versão 2 (Usando a Function FN_QTD_SERIES_EXERCICIO dentro da Subquery do FROM)
+CREATE OR REPLACE PROCEDURE PRC_EXERCICIO_MAX_SERIE_V2 IS
+    V_MAIOR_QTD    NUMBER;
+    V_ID_EXERCICIO NUMBER;
+BEGIN
+    SELECT MAX(QTD_SERIE)
+    INTO V_MAIOR_QTD
+    FROM (
+        SELECT FN_QTD_SERIES_EXERCICIO(COD_EXERCICIO) AS QTD_SERIE
+        FROM TRE_EXERCICIO
+    );
+
+    SELECT MIN(ID_EXERCICIO)
+    INTO V_ID_EXERCICIO
+    FROM (
+        SELECT
+            ID_EXERCICIO,
+            FN_QTD_SERIES_EXERCICIO(COD_EXERCICIO) AS QTD_SERIE
+        FROM TRE_EXERCICIO
+    )
+    WHERE QTD_SERIE = V_MAIOR_QTD;
+
+    DBMS_OUTPUT.PUT_LINE(' | ID do Exercício: ' || V_ID_EXERCICIO || ' | Maior Qtd de Séries: ' || V_MAIOR_QTD);
+END;
+/
+
+-- ----------------------------------------------------------------------------
+-- TRIO C: GRUPO MUSCULAR MAIS TREINADO EM SÉRIES
+-- ----------------------------------------------------------------------------
+-- Versão 1 (Com Subquery no FROM + GROUP BY + Desempate MIN(ID_GRP_MUSCULAR))
+CREATE OR REPLACE PROCEDURE PRC_GRUPO_MAX_SERIE_V1 IS
+    V_MAIOR_QTD NUMBER;
+    V_ID_GRP    NUMBER;
+BEGIN
+    SELECT MAX(QTD_SERIE)
+    INTO V_MAIOR_QTD
+    FROM (
+        SELECT
+            g.ID_GRP_MUSCULAR,
+            COUNT(s.ID_SERIE) AS QTD_SERIE
+        FROM TRE_GRUPOMUSCULAR g
+        LEFT JOIN TRE_EXERCICIO e    ON e.ID_GRP_MUSCULAR = g.ID_GRP_MUSCULAR
+        LEFT JOIN TRE_ITEM_TREINO it ON it.ID_EXERCICIO   = e.ID_EXERCICIO
+        LEFT JOIN TRE_SERIE s        ON s.ID_ITEM_TREINO  = it.ID_ITEM_TREINO
+        GROUP BY g.ID_GRP_MUSCULAR
+    );
+
+    SELECT MIN(ID_GRP_MUSCULAR)
+    INTO V_ID_GRP
+    FROM (
+        SELECT
+            g.ID_GRP_MUSCULAR,
+            COUNT(s.ID_SERIE) AS QTD_SERIE
+        FROM TRE_GRUPOMUSCULAR g
+        LEFT JOIN TRE_EXERCICIO e    ON e.ID_GRP_MUSCULAR = g.ID_GRP_MUSCULAR
+        LEFT JOIN TRE_ITEM_TREINO it ON it.ID_EXERCICIO   = e.ID_EXERCICIO
+        LEFT JOIN TRE_SERIE s        ON s.ID_ITEM_TREINO  = it.ID_ITEM_TREINO
+        GROUP BY g.ID_GRP_MUSCULAR
+    )
+    WHERE QTD_SERIE = V_MAIOR_QTD;
+
+    DBMS_OUTPUT.PUT_LINE(' | ID do Grupo Muscular: ' || V_ID_GRP || ' | Maior Qtd de Séries: ' || V_MAIOR_QTD);
+END;
+/
+
+-- Versão 2 (Usando a Function FN_QTD_SERIES_GRUPO dentro da Subquery do FROM)
+CREATE OR REPLACE PROCEDURE PRC_GRUPO_MAX_SERIE_V2 IS
+    V_MAIOR_QTD NUMBER;
+    V_ID_GRP    NUMBER;
+BEGIN
+    SELECT MAX(QTD_SERIE)
+    INTO V_MAIOR_QTD
+    FROM (
+        SELECT FN_QTD_SERIES_GRUPO(COD_GRP_MUSCULAR) AS QTD_SERIE
+        FROM TRE_GRUPOMUSCULAR
+    );
+
+    SELECT MIN(ID_GRP_MUSCULAR)
+    INTO V_ID_GRP
+    FROM (
+        SELECT
+            ID_GRP_MUSCULAR,
+            FN_QTD_SERIES_GRUPO(COD_GRP_MUSCULAR) AS QTD_SERIE
+        FROM TRE_GRUPOMUSCULAR
+    )
+    WHERE QTD_SERIE = V_MAIOR_QTD;
+
+    DBMS_OUTPUT.PUT_LINE(' | ID do Grupo Muscular: ' || V_ID_GRP || ' | Maior Qtd de Séries: ' || V_MAIOR_QTD);
+END;
+/
+
+-- ----------------------------------------------------------------------------
+-- TRIO D: USUÁRIO COM MAIS RECORDES BATIDOS
+-- ----------------------------------------------------------------------------
+-- Versão 1 (Com Subquery no FROM + GROUP BY + Desempate MIN(ID_USUARIO))
+CREATE OR REPLACE PROCEDURE PRC_USUARIO_MAX_RECORDES_V1 IS
+    V_MAIOR_QTD  NUMBER;
+    V_ID_USUARIO NUMBER;
+BEGIN
+    SELECT MAX(QTD_REC)
+    INTO V_MAIOR_QTD
+    FROM (
+        SELECT
+            u.ID_USUARIO,
+            COUNT(r.ID_RECORD) AS QTD_REC
+        FROM TRE_USUARIO u
+        LEFT JOIN TRE_RECORD r ON r.ID_USUARIO = u.ID_USUARIO
+        GROUP BY u.ID_USUARIO
+    );
+
+    SELECT MIN(ID_USUARIO)
+    INTO V_ID_USUARIO
+    FROM (
+        SELECT
+            u.ID_USUARIO,
+            COUNT(r.ID_RECORD) AS QTD_REC
+        FROM TRE_USUARIO u
+        LEFT JOIN TRE_RECORD r ON r.ID_USUARIO = u.ID_USUARIO
+        GROUP BY u.ID_USUARIO
+    )
+    WHERE QTD_REC = V_MAIOR_QTD;
+
+    DBMS_OUTPUT.PUT_LINE(' | ID do Usuário: ' || V_ID_USUARIO || ' | Maior Qtd de Recordes: ' || V_MAIOR_QTD);
+END;
+/
+
+-- Versão 2 (Usando a Function FN_QTD_RECORDES_USUARIO dentro da Subquery do FROM)
+CREATE OR REPLACE PROCEDURE PRC_USUARIO_MAX_RECORDES_V2 IS
+    V_MAIOR_QTD  NUMBER;
+    V_ID_USUARIO NUMBER;
+BEGIN
+    SELECT MAX(QTD_REC)
+    INTO V_MAIOR_QTD
+    FROM (
+        SELECT FN_QTD_RECORDES_USUARIO(COD_USUARIO) AS QTD_REC
+        FROM TRE_USUARIO
+    );
+
+    SELECT MIN(ID_USUARIO)
+    INTO V_ID_USUARIO
+    FROM (
+        SELECT
+            ID_USUARIO,
+            FN_QTD_RECORDES_USUARIO(COD_USUARIO) AS QTD_REC
+        FROM TRE_USUARIO
+    )
+    WHERE QTD_REC = V_MAIOR_QTD;
+
+    DBMS_OUTPUT.PUT_LINE(' | ID do Usuário: ' || V_ID_USUARIO || ' | Maior Qtd de Recordes: ' || V_MAIOR_QTD);
+END;
+/
+
+
+-- ============================================================================
+-- PARTE 4: CRUDs QUE FALTAVAM NO ATV_GRUPO.sql (META, RECORD, TREINO, ITEM, SERIE)
+-- ============================================================================
+-- Todos seguem o padrão do ATV_GRUPO.sql: recebem P_COD_... das tabelas mães,
+-- buscam o V_ID_... com SELECT INTO e fazem o INSERT / UPDATE / DELETE.
+-- ============================================================================
+
+-- ----------------------------------------------------------------------------
+-- 4.1 CRUD: TRE_META
+-- ----------------------------------------------------------------------------
+CREATE OR REPLACE PROCEDURE TRE_ADD_META(
+    P_COD_USR       TRE_USUARIO.COD_USUARIO%TYPE,
+    P_COD_EX        TRE_EXERCICIO.COD_EXERCICIO%TYPE,
+    P_COD_META      TRE_META.COD_META%TYPE,
+    P_CARGA_ALVO    TRE_META.CARGA_ALVO%TYPE,
+    P_DATA_CRIACAO  TRE_META.DATA_CRIACAO%TYPE,
+    P_DATA_ALVO     TRE_META.DATA_ALVO%TYPE,
+    P_STATUS        TRE_META.STATUS%TYPE
+) IS
+    V_ID_USR TRE_USUARIO.ID_USUARIO%TYPE;
+    V_ID_EX  TRE_EXERCICIO.ID_EXERCICIO%TYPE;
+BEGIN
+    SELECT ID_USUARIO INTO V_ID_USR FROM TRE_USUARIO WHERE COD_USUARIO = P_COD_USR;
+    SELECT ID_EXERCICIO INTO V_ID_EX FROM TRE_EXERCICIO WHERE COD_EXERCICIO = P_COD_EX;
+
+    INSERT INTO TRE_META (ID_USUARIO, ID_EXERCICIO, COD_META, CARGA_ALVO, DATA_CRIACAO, DATA_ALVO, STATUS)
+    VALUES (V_ID_USR, V_ID_EX, P_COD_META, P_CARGA_ALVO, P_DATA_CRIACAO, P_DATA_ALVO, P_STATUS);
+
+    DBMS_OUTPUT.PUT_LINE('Meta ' || P_COD_META || ' inserida com sucesso.');
+END;
+/
+
+CREATE OR REPLACE PROCEDURE TRE_UPD_META(
+    P_COD_META       TRE_META.COD_META%TYPE,
+    P_NEW_CARGA_ALVO TRE_META.CARGA_ALVO%TYPE,
+    P_NEW_STATUS     TRE_META.STATUS%TYPE,
+    P_DATA_CONCLUSAO TRE_META.DATA_CONCLUSAO%TYPE
+) IS
+BEGIN
+    UPDATE TRE_META
+    SET CARGA_ALVO     = P_NEW_CARGA_ALVO,
+        STATUS         = P_NEW_STATUS,
+        DATA_CONCLUSAO = P_DATA_CONCLUSAO
+    WHERE COD_META = P_COD_META;
+
+    DBMS_OUTPUT.PUT_LINE('Meta ' || P_COD_META || ' atualizada com sucesso.');
+END;
+/
+
+CREATE OR REPLACE PROCEDURE TRE_DEL_META(
+    P_COD_META TRE_META.COD_META%TYPE
+) IS
+BEGIN
+    DELETE FROM TRE_META WHERE COD_META = P_COD_META;
+    DBMS_OUTPUT.PUT_LINE('Meta ' || P_COD_META || ' deletada com sucesso.');
+END;
+/
+
+-- ----------------------------------------------------------------------------
+-- 4.2 CRUD: TRE_RECORD
+-- ----------------------------------------------------------------------------
+CREATE OR REPLACE PROCEDURE TRE_ADD_RECORD(
+    P_COD_USR      TRE_USUARIO.COD_USUARIO%TYPE,
+    P_COD_EX       TRE_EXERCICIO.COD_EXERCICIO%TYPE,
+    P_COD_RECORD   TRE_RECORD.COD_RECORD%TYPE,
+    P_CARGA_RECORD TRE_RECORD.CARGA_RECORD%TYPE,
+    P_DATA_RECORD  TRE_RECORD.DATA_RECORD%TYPE
+) IS
+    V_ID_USR TRE_USUARIO.ID_USUARIO%TYPE;
+    V_ID_EX  TRE_EXERCICIO.ID_EXERCICIO%TYPE;
+BEGIN
+    SELECT ID_USUARIO INTO V_ID_USR FROM TRE_USUARIO WHERE COD_USUARIO = P_COD_USR;
+    SELECT ID_EXERCICIO INTO V_ID_EX FROM TRE_EXERCICIO WHERE COD_EXERCICIO = P_COD_EX;
+
+    INSERT INTO TRE_RECORD (ID_USUARIO, ID_EXERCICIO, COD_RECORD, CARGA_RECORD, DATA_RECORD)
+    VALUES (V_ID_USR, V_ID_EX, P_COD_RECORD, P_CARGA_RECORD, P_DATA_RECORD);
+
+    DBMS_OUTPUT.PUT_LINE('Recorde ' || P_COD_RECORD || ' inserido com sucesso.');
+END;
+/
+
+CREATE OR REPLACE PROCEDURE TRE_UPD_RECORD(
+    P_COD_RECORD       TRE_RECORD.COD_RECORD%TYPE,
+    P_NEW_CARGA_RECORD TRE_RECORD.CARGA_RECORD%TYPE,
+    P_NEW_DATA_RECORD  TRE_RECORD.DATA_RECORD%TYPE
+) IS
+BEGIN
+    UPDATE TRE_RECORD
+    SET CARGA_RECORD = P_NEW_CARGA_RECORD,
+        DATA_RECORD  = P_NEW_DATA_RECORD
+    WHERE COD_RECORD = P_COD_RECORD;
+
+    DBMS_OUTPUT.PUT_LINE('Recorde ' || P_COD_RECORD || ' atualizado com sucesso.');
+END;
+/
+
+CREATE OR REPLACE PROCEDURE TRE_DEL_RECORD(
+    P_COD_RECORD TRE_RECORD.COD_RECORD%TYPE
+) IS
+BEGIN
+    DELETE FROM TRE_RECORD WHERE COD_RECORD = P_COD_RECORD;
+    DBMS_OUTPUT.PUT_LINE('Recorde ' || P_COD_RECORD || ' deletado com sucesso.');
+END;
+/
+
+-- ----------------------------------------------------------------------------
+-- 4.3 CRUD: TRE_TREINO
+-- ----------------------------------------------------------------------------
+CREATE OR REPLACE PROCEDURE TRE_ADD_TREINO(
+    P_COD_USR      TRE_USUARIO.COD_USUARIO%TYPE,
+    P_COD_TREINO   TRE_TREINO.COD_TREINO%TYPE,
+    P_DATA_TREINO  TRE_TREINO.DATA_TREINO%TYPE,
+    P_DURACAO      TRE_TREINO.DURACAO_MINUTO%TYPE,
+    P_OBS          TRE_TREINO.OBSERVACOES%TYPE
+) IS
+    V_ID_USR TRE_USUARIO.ID_USUARIO%TYPE;
+BEGIN
+    SELECT ID_USUARIO INTO V_ID_USR FROM TRE_USUARIO WHERE COD_USUARIO = P_COD_USR;
+
+    INSERT INTO TRE_TREINO (ID_USUARIO, COD_TREINO, DATA_TREINO, DURACAO_MINUTO, OBSERVACOES)
+    VALUES (V_ID_USR, P_COD_TREINO, P_DATA_TREINO, P_DURACAO, P_OBS);
+
+    DBMS_OUTPUT.PUT_LINE('Treino ' || P_COD_TREINO || ' inserido com sucesso.');
+END;
+/
+
+CREATE OR REPLACE PROCEDURE TRE_UPD_TREINO(
+    P_COD_TREINO  TRE_TREINO.COD_TREINO%TYPE,
+    P_NEW_DURACAO TRE_TREINO.DURACAO_MINUTO%TYPE,
+    P_NEW_OBS     TRE_TREINO.OBSERVACOES%TYPE
+) IS
+BEGIN
+    UPDATE TRE_TREINO
+    SET DURACAO_MINUTO = P_NEW_DURACAO,
+        OBSERVACOES    = P_NEW_OBS
+    WHERE COD_TREINO = P_COD_TREINO;
+
+    DBMS_OUTPUT.PUT_LINE('Treino ' || P_COD_TREINO || ' atualizado com sucesso.');
+END;
+/
+
+CREATE OR REPLACE PROCEDURE TRE_DEL_TREINO(
+    P_COD_TREINO TRE_TREINO.COD_TREINO%TYPE
+) IS
+BEGIN
+    DELETE FROM TRE_TREINO WHERE COD_TREINO = P_COD_TREINO;
+    DBMS_OUTPUT.PUT_LINE('Treino ' || P_COD_TREINO || ' deletado com sucesso.');
+END;
+/
+
+-- ----------------------------------------------------------------------------
+-- 4.4 CRUD: TRE_ITEM_TREINO E TRE_SERIE
+-- ----------------------------------------------------------------------------
+CREATE OR REPLACE PROCEDURE TRE_ADD_ITEM_TREINO(
+    P_COD_TREINO TRE_TREINO.COD_TREINO%TYPE,
+    P_COD_EX     TRE_EXERCICIO.COD_EXERCICIO%TYPE,
+    P_ORDEM      TRE_ITEM_TREINO.ORDEM%TYPE
+) IS
+    V_ID_TREINO TRE_TREINO.ID_TREINO%TYPE;
+    V_ID_EX     TRE_EXERCICIO.ID_EXERCICIO%TYPE;
+BEGIN
+    SELECT ID_TREINO INTO V_ID_TREINO FROM TRE_TREINO WHERE COD_TREINO = P_COD_TREINO;
+    SELECT ID_EXERCICIO INTO V_ID_EX FROM TRE_EXERCICIO WHERE COD_EXERCICIO = P_COD_EX;
+
+    INSERT INTO TRE_ITEM_TREINO (ID_TREINO, ID_EXERCICIO, ORDEM)
+    VALUES (V_ID_TREINO, V_ID_EX, P_ORDEM);
+
+    DBMS_OUTPUT.PUT_LINE('Item adicionado ao treino ' || P_COD_TREINO || ' com sucesso.');
+END;
+/
+
+CREATE OR REPLACE PROCEDURE TRE_ADD_SERIE(
+    P_COD_TREINO   TRE_TREINO.COD_TREINO%TYPE,
+    P_COD_EX       TRE_EXERCICIO.COD_EXERCICIO%TYPE,
+    P_COD_SERIE    TRE_SERIE.COD_SERIE%TYPE,
+    P_NUMERO_SERIE TRE_SERIE.NUMERO_SERIE%TYPE,
+    P_REPETICOES   TRE_SERIE.REPETICOES%TYPE,
+    P_CARGA        TRE_SERIE.CARGA%TYPE
+) IS
+    V_ID_ITEM TRE_ITEM_TREINO.ID_ITEM_TREINO%TYPE;
+BEGIN
+    -- Descobre o ID_ITEM_TREINO a partir do COD_TREINO e COD_EXERCICIO
+    SELECT MIN(it.ID_ITEM_TREINO)
+    INTO V_ID_ITEM
+    FROM TRE_ITEM_TREINO it
+    INNER JOIN TRE_TREINO t    ON t.ID_TREINO    = it.ID_TREINO
+    INNER JOIN TRE_EXERCICIO e ON e.ID_EXERCICIO = it.ID_EXERCICIO
+    WHERE t.COD_TREINO    = P_COD_TREINO
+      AND e.COD_EXERCICIO = P_COD_EX;
+
+    INSERT INTO TRE_SERIE (ID_ITEM_TREINO, COD_SERIE, NUMERO_SERIE, REPETICOES, CARGA)
+    VALUES (V_ID_ITEM, P_COD_SERIE, P_NUMERO_SERIE, P_REPETICOES, P_CARGA);
+
+    DBMS_OUTPUT.PUT_LINE('Série ' || P_COD_SERIE || ' inserida com sucesso.');
+END;
+/
+
+CREATE OR REPLACE PROCEDURE TRE_UPD_SERIE(
+    P_COD_SERIE      TRE_SERIE.COD_SERIE%TYPE,
+    P_NEW_REPETICOES TRE_SERIE.REPETICOES%TYPE,
+    P_NEW_CARGA      TRE_SERIE.CARGA%TYPE
+) IS
+BEGIN
+    UPDATE TRE_SERIE
+    SET REPETICOES = P_NEW_REPETICOES,
+        CARGA      = P_NEW_CARGA
+    WHERE COD_SERIE = P_COD_SERIE;
+
+    DBMS_OUTPUT.PUT_LINE('Série ' || P_COD_SERIE || ' atualizada com sucesso.');
+END;
+/
+
+CREATE OR REPLACE PROCEDURE TRE_DEL_SERIE(
+    P_COD_SERIE TRE_SERIE.COD_SERIE%TYPE
+) IS
+BEGIN
+    DELETE FROM TRE_SERIE WHERE COD_SERIE = P_COD_SERIE;
+    DBMS_OUTPUT.PUT_LINE('Série ' || P_COD_SERIE || ' deletada com sucesso.');
+END;
+/

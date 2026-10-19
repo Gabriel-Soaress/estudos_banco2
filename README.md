@@ -13,11 +13,15 @@ Repositório completo de preparação para a prova de **Banco de Dados II**, con
 
 ## 📚 Índice Rápido para Revisão (Ordem Recomendada)
 
-### 1. 🚨 Revisão Express antes da Prova
-- **[GUIA_DE_DUVIDAS_E_PEGADINHAS.md](./GUIA_DE_DUVIDAS_E_PEGADINHAS.md):** Os **15 erros e armadilhas reais** mapeados durante a semana (código errado vs. código certo comentado).
-- **[CONTEUDO_COMPLETO_BANCO2.md](./CONTEUDO_COMPLETO_BANCO2.md):** Enciclopédia completa com 100% da teoria, diagramas ASCII, analogias e exemplos comentados de SQL e PL/SQL.
+### 1. 🛡️ Arsenal Salva-Vidas para a Prova (NOVO!)
+- **[ARSENAL_PROVA_COMENTADO.md](./ARSENAL_PROVA_COMENTADO.md):** Mapa de bolso com todas as **8 Views**, **8 Functions** e **22 Procedures** prontas para usar ou copiar na prova.
+- **[ARSENAL_PROVA_TRE.sql](./ARSENAL_PROVA_TRE.sql):** Script `.sql` pronto para rodar com `F5` no SQL Developer (já cria todas as Views com JOINs/SUM/AVG/MAX/MIN, Functions diretas no `SELECT`, os 5 Trios V1/V2 do professor e os CRUDs de todas as tabelas).
 
-### 2. 🏆 Simulados de Prova (Com Resoluções e Gabaritos Comentados)
+### 2. 🚨 Revisão Express antes da Prova
+- **[GUIA_DE_DUVIDAS_E_PEGADINHAS.md](./GUIA_DE_DUVIDAS_E_PEGADINHAS.md):** Os **15 erros e armadilhas reais** mapeados durante a semana (código errado vs. código certo comentado).
+- **[CONTEUDO_COMPLETO_BANCO2.md](./CONTEUDO_COMPLETO_BANCO2.md):** Enciclopédia completa com 100% da teoria, **Seção 1.8 (Guia Mestre Comparativo de Subqueries)**, diagramas ASCII, analogias e exemplos comentados de SQL e PL/SQL.
+
+### 3. 🏆 Simulados de Prova (Com Resoluções e Gabaritos Comentados)
 - **[SIMULADO_PRATICO_FINAL.md](./SIMULADO_PRATICO_FINAL.md):** 1º Simulado Prático + **Script do aluno corrigido e comentado linha a linha**.
 - **[SIMULADO_PRATICO_DOMINGO.md](./SIMULADO_PRATICO_DOMINGO.md):** 2º Simulado Prático + **Gabarito Oficial 100% comentado no final**.
 - **[SIMULADO_TEORICO.html](./SIMULADO_TEORICO.html):** 1º Simulado Teórico e Caça aos Bugs interativo.
