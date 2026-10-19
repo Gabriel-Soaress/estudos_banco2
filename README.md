@@ -13,6 +13,10 @@ Repositório completo de preparação para a prova de **Banco de Dados II**, con
 
 ## 📚 Índice Rápido para Revisão (Ordem Recomendada)
 
+### 🔥 0. Prática de Hoje (19/10/2026) — Continuar Daqui no Outro PC!
+- **[PRATICA_SUBQUERIES_19_10.md](./PRATICA_SUBQUERIES_19_10.md):** Resoluções comentadas de hoje (`SELECT`, `FROM`, `WHERE`, `HAVING`, Desafio Completo e Vigência Temporal), enunciados da Rodada Rápida (`DELETE` / `UPDATE`) e **próximo passo: Procedures de Maior/Menor (V1 / Function / V2)**.
+- **[19 10 2026.sql](./19%2010%202026.sql):** Script `.sql` com as queries feitas hoje no SQL Developer.
+
 ### 1. 🛡️ Arsenal Salva-Vidas para a Prova (NOVO!)
 - **[ARSENAL_PROVA_COMENTADO.md](./ARSENAL_PROVA_COMENTADO.md):** Mapa de bolso com todas as **8 Views**, **8 Functions** e **22 Procedures** prontas para usar ou copiar na prova.
 - **[ARSENAL_PROVA_TRE.sql](./ARSENAL_PROVA_TRE.sql):** Script `.sql` pronto para rodar com `F5` no SQL Developer (já cria todas as Views com JOINs/SUM/AVG/MAX/MIN, Functions diretas no `SELECT`, os 5 Trios V1/V2 do professor e os CRUDs de todas as tabelas).

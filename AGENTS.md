@@ -68,3 +68,6 @@ O professor não ensinou e **NÃO** permite na prova os seguintes recursos:
    * `DIA_2_GUIA_E_EXERCICIOS.md`
    * `DIA_3_GUIA_E_EXERCICIOS.md`
    * `DIA_4_GUIA_E_EXERCICIOS.md`
+5. **Prática Intensiva de Hoje (19/10/2026) — ONDE PARAMOS PARA CONTINUAR NO OUTRO PC:**
+   * `PRATICA_SUBQUERIES_19_10.md` e `19 10 2026.sql`: Contêm os 5 exercícios de Subqueries resolvidos hoje pelo aluno (9,8/10), os 3 insights destravados (`HAVING` Espelho, Onde Mora Cada ID em `TRE_SERIE` e `BETWEEN` antes do `MAX` em `TRE_META` $\leftrightarrow$ `TRE_RECORD`), a Rodada Rápida de DML/Vigência Temporal (Exercício 2 já resolvido; faltam Exercícios 1 de `DELETE` e 3 de `UPDATE`), e **a próxima etapa combinada: praticar Procedures de Maior/Menor (Padrão Trio V1 / Function / V2)**.
+
