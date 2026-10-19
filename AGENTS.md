@@ -47,12 +47,14 @@ O professor não ensinou e **NÃO** permite na prova os seguintes recursos:
 
 ## 4. 📂 Mapa Completo dos Arquivos no Repositório
 
-1. **Scripts SQL Base e de Aula:**
+1. **Scripts SQL Base, de Aula e Arsenal de Prova:**
    * `TRE_SCRIPT_DDL.sql`: Estrutura completa das 8 tabelas do sistema de treinos (`TRE_USUARIO`, `TRE_GRUPOMUSCULAR`, `TRE_EXERCICIO`, `TRE_META`, `TRE_RECORD`, `TRE_TREINO`, `TRE_ITEM_TREINO`, `TRE_SERIE`).
    * `TRE_SCRIPT_DML_CORRETO.sql`: Massa de dados oficial populada e validada.
    * `ATV_GRUPO.sql`: Script feito em grupo na aula (CRUDs em Procedures + `TREINO_MAX_SERIE`, `COUNT_SERIES_TREINO` e `TREINO_MAX_SERIE2`).
-2. **Manuais de Estudo e Revisão Geral:**
-   * `CONTEUDO_COMPLETO_BANCO2.md`: Enciclopédia unificada (~1.020 linhas) com toda a teoria, diagramas ASCII, analogias e exemplos comentados dos 4 dias.
+   * `ARSENAL_PROVA_TRE.sql`: Script completo com 8 Views Salva-Vidas (JOINs completos + SUM, AVG, MAX, MIN, COUNT), 8 Functions diretas no `SELECT`, 4 novos Trios de Procedures V1/V2 e CRUDs das 5 tabelas que faltavam no `ATV_GRUPO.sql`.
+2. **Manuais de Estudo, Arsenal e Revisão Geral:**
+   * `ARSENAL_PROVA_COMENTADO.md`: Mapa de bolso em tabela explicando todas as Views, Functions e Procedures do `ARSENAL_PROVA_TRE.sql` e como usá-las na prova.
+   * `CONTEUDO_COMPLETO_BANCO2.md`: Enciclopédia unificada (~1.170 linhas) com toda a teoria, **Seção 1.8 (Guia Mestre Comparativo de Subqueries)**, diagramas ASCII, analogias e exemplos comentados dos 4 dias.
    * `GUIA_DE_DUVIDAS_E_PEGADINHAS.md`: Os 15 erros e armadilhas reais enfrentados pelo aluno durante os estudos, explicados com código errado vs código certo.
    * `LISTA_EXERCICIOS_REVISAO_RAPIDA.md`: 11 exercícios diretos por tópico + resoluções enviadas pelo aluno e código do `ATV_GRUPO.sql`.
 3. **Simulados Finais de Prova:**
